@@ -1,11 +1,14 @@
 """
-updater.py — DTF MANAGER Auto-Update v6.0
-==========================================
-Suporta dois modos:
-  tipo = "exe"  → baixa e substitui o .exe diretamente
-  tipo = "zip"  → baixa .zip, extrai o .exe, substitui
+updater.py — DTF MANAGER PRO Auto-Update v7.0
+==============================================
+Verifica atualização consultando a API de Releases do GitHub
+(https://api.github.com/repos/<owner>/<repo>/releases/latest) — a própria
+release do GitHub já é a fonte da versão (tag_name), das notas (body) e do
+arquivo de instalação (assets), sem precisar manter um version.json à parte
+em nenhum lugar.
 
-O Apps Script informa o tipo no version.json via campo "tipo".
+Suporta dois modos de pacote (tipo = "exe" ou "zip" no ResultadoUpdate) —
+hoje sempre "zip", já que o build do PRO é onedir (.exe + pasta _internal).
 """
 
 import os
@@ -120,6 +123,12 @@ class ResultadoUpdate:
 # ── Verificação ───────────────────────────────────────────────────────────────
 
 def verificar_atualizacao() -> ResultadoUpdate:
+    """
+    VERSION_URL aponta pra API de releases do GitHub
+    (https://api.github.com/repos/<owner>/<repo>/releases/latest) — a própria
+    release já traz a versão (tag_name), as notas (body) e o arquivo anexado
+    (assets), então não existe mais um version.json separado pra manter.
+    """
     if not VERSION_URL:
         return ResultadoUpdate(
             erro="URL de atualização não configurada.\n"
@@ -128,27 +137,43 @@ def verificar_atualizacao() -> ResultadoUpdate:
     try:
         req = request.Request(
             VERSION_URL,
-            headers={"User-Agent": "DTF-Manager-Updater/6.0",
+            headers={"User-Agent": "DTF-Manager-Updater/7.0",
+                     "Accept": "application/vnd.github+json",
                      "Cache-Control": "no-cache"}
         )
         with request.urlopen(req, timeout=TIMEOUT) as resp:
             dados = json.loads(resp.read().decode("utf-8"))
 
-        if "erro" in dados:
-            return ResultadoUpdate(erro=f"Erro no servidor: {dados['erro']}")
+        if "tag_name" not in dados:
+            msg = dados.get("message", "resposta inesperada do GitHub")
+            return ResultadoUpdate(erro=f"Erro ao consultar releases: {msg}")
 
-        v_remota   = dados.get("versao", "0.0.0")
+        assets = dados.get("assets") or []
+        if not assets:
+            return ResultadoUpdate(
+                erro="A versão mais recente no GitHub não tem nenhum arquivo "
+                     "anexado (esqueceu de subir o .zip na release?)."
+            )
+        # convenção: 1 .zip por release, com o .exe + _internal dentro
+        asset_zip = next(
+            (a for a in assets if a.get("name", "").lower().endswith(".zip")),
+            assets[0])
+
+        v_remota   = dados.get("tag_name", "0.0.0")
         v_local    = versao_local()
-        url        = dados.get("url", "")
-        notas      = dados.get("notas", "")
-        tipo       = dados.get("tipo", "exe")
+        url        = asset_zip.get("browser_download_url", "")
+        notas      = dados.get("body", "") or ""
         disponivel = _versao_tuple(v_remota) > _versao_tuple(v_local)
-        return ResultadoUpdate(disponivel, v_remota, url, notas, tipo=tipo)
+        return ResultadoUpdate(disponivel, v_remota, url, notas, tipo="zip")
 
+    except url_error.HTTPError as e:
+        if e.code == 404:
+            return ResultadoUpdate(erro="Nenhuma release publicada ainda no GitHub.")
+        return ResultadoUpdate(erro=f"Erro HTTP {e.code} ao consultar o GitHub.")
     except url_error.URLError as e:
         return ResultadoUpdate(erro=f"Sem conexão:\n{getattr(e,'reason',str(e))}")
     except json.JSONDecodeError:
-        return ResultadoUpdate(erro="Resposta inválida do servidor.")
+        return ResultadoUpdate(erro="Resposta inválida do GitHub.")
     except Exception as e:
         return ResultadoUpdate(erro=f"Erro: {e}")
 

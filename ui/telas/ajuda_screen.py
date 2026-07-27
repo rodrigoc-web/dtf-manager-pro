@@ -27,9 +27,10 @@ _DICAS = [
 
 
 class AjudaScreen(ctk.CTkFrame):
-    def __init__(self, master, db_path: str, **kw):
+    def __init__(self, master, db_path: str, on_verificar_atualizacao=None, **kw):
         super().__init__(master, fg_color=FUNDO, corner_radius=0, **kw)
         self._db = db_path
+        self._on_verificar_atualizacao = on_verificar_atualizacao
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -72,9 +73,24 @@ class AjudaScreen(ctk.CTkFrame):
                      fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
                      command=self._abrir_logs).pack(anchor="w", padx=16, pady=(0, 16))
 
+        atualizacoes = ctk.CTkFrame(self, fg_color=CARD, corner_radius=12,
+                                    border_width=1, border_color=BORDA)
+        atualizacoes.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 16))
+        ctk.CTkLabel(atualizacoes, text="ATUALIZAÇÕES", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").pack(anchor="w", padx=16, pady=(14, 6))
+        ctk.CTkButton(atualizacoes, text=" Verificar atualização agora", height=34,
+                     image=icons.imagem(icons.ATUALIZAR, tam=13, cor=TEXTO), compound="left",
+                     fg_color=CARD, text_color=TEXTO, hover_color=VERDE_CLARO,
+                     border_color=BORDA, border_width=1,
+                     command=self._verificar_atualizacao).pack(anchor="w", padx=16, pady=(0, 16))
+
     def _abrir_logs(self):
         from infrastructure.filesystem import logs_dir
         try:
             os.startfile(str(logs_dir()))
         except Exception as e:
             messagebox.showerror("Erro ao abrir pasta", str(e))
+
+    def _verificar_atualizacao(self):
+        if self._on_verificar_atualizacao:
+            self._on_verificar_atualizacao()

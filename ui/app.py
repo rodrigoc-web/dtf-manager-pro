@@ -32,6 +32,7 @@ class DTFProApp(ctk.CTk):
         self._montar()
         self.navegar("dashboard")
         self._backup_automatico()
+        self._iniciar_updater()
 
     def _setup(self):
         from core.constants import APP_NOME, VERSAO
@@ -77,6 +78,65 @@ class DTFProApp(ctk.CTk):
                 pass
         import threading
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _iniciar_updater(self):
+        """Checa por atualização só nessa abertura do programa (nunca fica
+        checando periodicamente enquanto está aberto). A checagem roda em
+        thread separada (dentro de updater.py); o resultado só chega até a
+        UI por fila — nunca chamar .after()/widget direto de dentro de uma
+        thread, já vimos esse RuntimeError antes (geração de miniatura)."""
+        import queue
+        from pathlib import Path
+        import updater
+        self._fila_updates: queue.Queue = queue.Queue()
+        updater.init_updater(Path(self._base), Path(self._base) / "config_app.json")
+        updater.checar_na_inicializacao(
+            lambda resultado: self._fila_updates.put(("auto", resultado)))
+        self._drenar_fila_updates()
+
+    def _drenar_fila_updates(self):
+        import queue
+        try:
+            while True:
+                origem, resultado = self._fila_updates.get_nowait()
+                self._tratar_resultado_update(origem, resultado)
+        except queue.Empty:
+            pass
+        self.after(300, self._drenar_fila_updates)
+
+    def _tratar_resultado_update(self, origem: str, resultado):
+        from tkinter import messagebox
+        if origem == "manual":
+            if resultado.erro:
+                messagebox.showerror("Verificar atualização", resultado.erro)
+                return
+            if not resultado.disponivel:
+                messagebox.showinfo("Verificar atualização",
+                                     "Você já está na versão mais recente.")
+                return
+        if resultado.disponivel:
+            self._mostrar_atualizacao(resultado)
+
+    def _mostrar_atualizacao(self, resultado):
+        from ui.dialogs.update_dialog import UpdateDialog
+        UpdateDialog(self, self._base, resultado, on_reiniciar=self._reiniciar_para_atualizar)
+
+    def verificar_atualizacao_manual(self):
+        """Chamado pelo botão "Verificar atualização" da tela Ajuda — mesma
+        checagem, mas disparada na hora em vez de só na abertura."""
+        import threading
+        import updater
+
+        def _worker():
+            resultado = updater.verificar_atualizacao()
+            self._fila_updates.put(("manual", resultado))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _reiniciar_para_atualizar(self):
+        self.destroy()
+        import sys
+        sys.exit(0)
 
     def _montar(self):
         self._sidebar = Sidebar(self, on_navegar=self.navegar, on_trocar_operador=self.trocar_operador)
@@ -124,7 +184,8 @@ class DTFProApp(ctk.CTk):
             return ConfigScreen(self._conteudo, self._db)
         if chave == "ajuda":
             from ui.telas.ajuda_screen import AjudaScreen
-            return AjudaScreen(self._conteudo, self._db)
+            return AjudaScreen(self._conteudo, self._db,
+                               on_verificar_atualizacao=self.verificar_atualizacao_manual)
         raise ValueError(f"Tela desconhecida: {chave}")
 
     def _apos_producao(self):
