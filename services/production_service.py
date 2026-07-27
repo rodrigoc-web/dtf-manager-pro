@@ -117,7 +117,14 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
 
     # ── 4. Exportação ─────────────────────────────────────────────────────────
     log.info("[4/4] Exportando arquivos...")
-    folha    = montar_folha_combinada(artes_profissao, artes_time)
+    from infrastructure.db import config_repo
+    from core.utils import cm_para_px
+    num_colunas    = max(1, config_repo.obter_int(db, "grade_num_colunas", 2))
+    largura_coluna = cm_para_px(config_repo.obter_float(db, "grade_largura_coluna_cm", 28.5))
+    altura_coluna  = cm_para_px(config_repo.obter_float(db, "grade_altura_coluna_cm", 40.0))
+    largura_rolo   = cm_para_px(config_repo.obter_float(db, "grade_largura_rolo_cm", 57.0))
+    folha = montar_folha_combinada(
+        artes_profissao, artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo)
     png      = salvar_png(folha, pasta_lote, lote_id)
     pdf      = salvar_pdf(png, pasta_lote, lote_id)
     try:

@@ -4,10 +4,12 @@ core/constants.py — Constantes globais do DTF MANAGER PRO.
 """
 
 # ── Impressão ─────────────────────────────────────────────────────────────────
-CANVAS_W        = 6729   # largura do rolo (57cm @ 300dpi) — NÃO alterar
+# CANVAS_W é só o valor de fallback caso a configuração de grade (tela
+# Configurações → "Grade de impressão") ainda não tenha sido definida — a
+# fonte de verdade em produção é o que está salvo em `configuracoes`
+# (grade_largura_rolo_cm etc.), não mais essa constante.
+CANVAS_W        = 6729   # largura do rolo (57cm @ 300dpi) — valor de fallback
 MARGEM_LATERAL  =  120   # ~1cm de margem em cada lado (dentro do canvas)
-COL_OFFSET      = 3365   # deslocamento da 2ª coluna — só usado na folha de Times
-                         # (2 colunas de largura fixa, igual ao DTF MANAGER original)
 DPI             =  300
 
 # ── Heurística de detecção de camada de telefone (tela Gerenciar Modelos) ─────

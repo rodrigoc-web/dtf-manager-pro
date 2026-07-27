@@ -34,6 +34,7 @@ class ConfigScreen(ctk.CTkFrame):
 
         self._montar_operadores()
         self._montar_meta_dia()
+        self._montar_grade_impressao()
         self._montar_estoque()
         self._montar_backup()
         self.atualizar()
@@ -103,10 +104,72 @@ class ConfigScreen(ctk.CTkFrame):
         config_repo.definir(self._db, "meta_dia", str(valor))
         messagebox.showinfo("Meta atualizada", f"Meta diária definida em {valor} peças.")
 
+    # ── Grade de impressão (colunas, tamanho por coluna, largura do rolo) ───
+
+    def _montar_grade_impressao(self):
+        card = self._card(icons.CAMADAS, "GRADE DE IMPRESSÃO", 2)
+        ctk.CTkLabel(card, text="Toda arte (Profissão e Time) é redimensionada "
+                                 "proporcionalmente pra caber nesse tamanho de coluna.",
+                     font=ctk.CTkFont("Segoe UI", 9), text_color=SUB,
+                     wraplength=700, justify="left", anchor="w").pack(
+            anchor="w", padx=16, pady=(0, 10))
+
+        linha1 = ctk.CTkFrame(card, fg_color="transparent")
+        linha1.pack(fill="x", padx=16, pady=(0, 8))
+        ctk.CTkLabel(linha1, text="Nº de colunas", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
+        ctk.CTkLabel(linha1, text="Largura da coluna (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=1, sticky="w", padx=(0, 8))
+        ctk.CTkLabel(linha1, text="Altura da coluna (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=2, sticky="w", padx=(0, 8))
+        ctk.CTkLabel(linha1, text="Largura do rolo (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=3, sticky="w")
+
+        self._entry_num_colunas = ctk.CTkEntry(linha1, height=32, width=90)
+        self._entry_num_colunas.grid(row=1, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
+        self._entry_largura_coluna = ctk.CTkEntry(linha1, height=32, width=90)
+        self._entry_largura_coluna.grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 0))
+        self._entry_altura_coluna = ctk.CTkEntry(linha1, height=32, width=90)
+        self._entry_altura_coluna.grid(row=1, column=2, sticky="w", padx=(0, 8), pady=(2, 0))
+        self._entry_largura_rolo = ctk.CTkEntry(linha1, height=32, width=90)
+        self._entry_largura_rolo.grid(row=1, column=3, sticky="w", pady=(2, 0))
+
+        ctk.CTkButton(card, text="Salvar", height=32, width=90,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     command=self._salvar_grade_impressao).pack(anchor="w", padx=16, pady=(10, 14))
+
+    def _salvar_grade_impressao(self):
+        from infrastructure.db import config_repo
+        try:
+            num_colunas = int(self._entry_num_colunas.get().strip())
+            largura_coluna = float(self._entry_largura_coluna.get().strip().replace(",", "."))
+            altura_coluna = float(self._entry_altura_coluna.get().strip().replace(",", "."))
+            largura_rolo = float(self._entry_largura_rolo.get().strip().replace(",", "."))
+        except ValueError:
+            messagebox.showwarning("Valor inválido",
+                "Nº de colunas deve ser um número inteiro; as larguras/altura, "
+                "números em cm (ex.: 28.5).")
+            return
+        if num_colunas < 1 or largura_coluna <= 0 or altura_coluna <= 0 or largura_rolo <= 0:
+            messagebox.showwarning("Valor inválido", "Todos os valores devem ser maiores que zero.")
+            return
+
+        config_repo.definir(self._db, "grade_num_colunas", str(num_colunas))
+        config_repo.definir(self._db, "grade_largura_coluna_cm", str(largura_coluna))
+        config_repo.definir(self._db, "grade_altura_coluna_cm", str(altura_coluna))
+        config_repo.definir(self._db, "grade_largura_rolo_cm", str(largura_rolo))
+
+        aviso = ""
+        if num_colunas * largura_coluna > largura_rolo:
+            aviso = ("\n\nAtenção: essa quantidade de colunas nesse tamanho ultrapassa "
+                     "a largura do rolo configurada — a folha vai crescer além do rolo "
+                     "físico, revise os números.")
+        messagebox.showinfo("Grade atualizada", f"Configuração de grade salva.{aviso}")
+
     # ── Estoque de rolo DTF ──────────────────────────────────────────────────
 
     def _montar_estoque(self):
-        card = self._card(icons.CAIXA, "ESTOQUE DE ROLO DTF", 2)
+        card = self._card(icons.CAIXA, "ESTOQUE DE ROLO DTF", 3)
         self._lbl_estoque_atual = ctk.CTkLabel(
             card, text="", font=ctk.CTkFont("Segoe UI", 20, "bold"), text_color=TEXTO, anchor="w")
         self._lbl_estoque_atual.pack(anchor="w", padx=16)
@@ -159,7 +222,7 @@ class ConfigScreen(ctk.CTkFrame):
     # ── Backup ───────────────────────────────────────────────────────────────
 
     def _montar_backup(self):
-        card = self._card(icons.SALVAR, "BACKUP", 3)
+        card = self._card(icons.SALVAR, "BACKUP", 4)
         self._lbl_ultimo_backup = ctk.CTkLabel(
             card, text="", font=ctk.CTkFont("Segoe UI", 10), text_color=SUB, anchor="w")
         self._lbl_ultimo_backup.pack(anchor="w", padx=16)
@@ -234,6 +297,15 @@ class ConfigScreen(ctk.CTkFrame):
         meta_atual = config_repo.obter_int(self._db, "meta_dia", META_DIA)
         self._entry_meta.delete(0, "end")
         self._entry_meta.insert(0, str(meta_atual))
+
+        self._entry_num_colunas.delete(0, "end")
+        self._entry_num_colunas.insert(0, str(config_repo.obter_int(self._db, "grade_num_colunas", 2)))
+        self._entry_largura_coluna.delete(0, "end")
+        self._entry_largura_coluna.insert(0, str(config_repo.obter_float(self._db, "grade_largura_coluna_cm", 28.5)))
+        self._entry_altura_coluna.delete(0, "end")
+        self._entry_altura_coluna.insert(0, str(config_repo.obter_float(self._db, "grade_altura_coluna_cm", 40.0)))
+        self._entry_largura_rolo.delete(0, "end")
+        self._entry_largura_rolo.insert(0, str(config_repo.obter_float(self._db, "grade_largura_rolo_cm", 57.0)))
 
         estoque_atual = estoque_repo.estoque_atual_metros(self._db)
         self._lbl_estoque_atual.configure(text=f"{estoque_atual:.1f} m em estoque")

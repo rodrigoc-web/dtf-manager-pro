@@ -1,21 +1,20 @@
 """
 services/export_service.py — Monta a folha final e exporta PNG + PDF.
 
-Times usam a MESMA disposição de 2 colunas de largura fixa do DTF MANAGER
-original (`montar_folha_times`) — pedido explícito do usuário, já que
-uniformes têm tamanho uniforme e essa é a medida testada em produção lá.
-Profissão continua no empacotamento por LINHAS (`montar_folha`): as artes de
-profissão variam muito de largura, então cada linha acumula artes lado a
-lado até não caber mais espaço útil do rolo, então pula pra próxima linha —
-como um "fluxo" de texto, não uma grade fixa (não faria sentido usar a
-grade de 2 colunas fixas aqui). Quando um lote tem os dois tipos,
-`montar_folha_combinada` empilha as duas folhas (Times em cima, Profissão
-embaixo) num único PNG/PDF final.
+Times e Profissão usam a MESMA grade de N colunas configurável
+(`montar_folha_grade`) — número de colunas, tamanho de cada coluna e
+largura do rolo vêm da tela Configurações (infrastructure/db/config_repo),
+não são mais fixos no código. Cada arte é redimensionada proporcionalmente
+(contain-fit, sem distorcer) pra caber dentro da célula da coluna, ampliando
+ou encolhendo conforme necessário — antes isso exigia calibrar o tamanho
+arte por arte no PSD. Quando um lote tem os dois tipos, `montar_folha_combinada`
+empilha as duas folhas (Times em cima, Profissão embaixo) num único PNG/PDF
+final — cada categoria usa a mesma configuração de grade.
 """
 from __future__ import annotations
 import os
 from PIL import Image
-from core.constants import CANVAS_W, MARGEM_LATERAL, COL_OFFSET, DPI
+from core.constants import MARGEM_LATERAL, DPI
 from core.utils import timestamp_arquivo
 from core.exceptions import ExportError
 import core.logger as log
@@ -23,98 +22,80 @@ import core.logger as log
 GAP_ENTRE_ARTES = 40   # respiro entre artes na mesma linha e entre linhas
 
 
-def montar_folha(artes: list[tuple[object, Image.Image]]) -> Image.Image:
+def _ajustar_para_celula(img: Image.Image, largura_max: int, altura_max: int) -> Image.Image:
+    """Redimensiona proporcionalmente (contain-fit, sem distorcer) pra caber
+    dentro de largura_max × altura_max — encolhe OU amplia, conforme o caso."""
+    escala = min(largura_max / img.width, altura_max / img.height)
+    novo_tam = (max(1, round(img.width * escala)), max(1, round(img.height * escala)))
+    return img.resize(novo_tam, Image.LANCZOS)
+
+
+def montar_folha_grade(
+        artes: list[tuple[object, Image.Image]],
+        num_colunas: int,
+        largura_coluna: int,
+        altura_coluna: int,
+        largura_rolo: int,
+        margem_lateral: int = MARGEM_LATERAL,
+        gap: int = GAP_ENTRE_ARTES) -> Image.Image:
     """
-    Empacota as artes em linhas dentro da largura útil do rolo (57cm).
-    Se uma arte sozinha for mais larga que o rolo inteiro, ela ainda é
-    posicionada (a folha cresce para acomodá-la) e um aviso é logado —
-    isso indica que o PSD cadastrado não está no tamanho de impressão
-    correto e deve ser revisado em Gerenciar Modelos.
+    Organiza as artes numa grade de `num_colunas` colunas (preenche por
+    linha, esquerda→direita, depois desce uma linha), redimensionando cada
+    arte proporcionalmente pra caber dentro da célula (largura_coluna ×
+    altura_coluna) e centralizando o resultado nela. Como toda célula tem
+    tamanho fixo, todas as linhas têm a mesma altura (mais simples que o
+    empacotamento antigo, que calculava altura máxima por linha).
     """
-    usavel = CANVAS_W - 2 * MARGEM_LATERAL
-    linhas: list[list[Image.Image]] = []
-    linha_atual: list[Image.Image] = []
-    largura_atual = 0
+    num_colunas    = max(1, num_colunas)
+    largura_coluna = max(1, largura_coluna)
+    altura_coluna  = max(1, altura_coluna)
 
-    for _, img in artes:
-        if img.width > usavel:
-            log.aviso(f"Arte de {img.width}px é mais larga que o rolo útil "
-                      f"({usavel}px) — revise o PSD cadastrado.")
-        precisa_de_espaco = img.width + (GAP_ENTRE_ARTES if linha_atual else 0)
-        if linha_atual and largura_atual + precisa_de_espaco > usavel:
-            linhas.append(linha_atual)
-            linha_atual, largura_atual = [], 0
-        if linha_atual:
-            largura_atual += GAP_ENTRE_ARTES
-        linha_atual.append(img)
-        largura_atual += img.width
+    if not artes:
+        return Image.new("RGBA", (max(1, largura_rolo), 1), (0, 0, 0, 0))
 
-    if linha_atual:
-        linhas.append(linha_atual)
+    largura_necessaria = num_colunas * largura_coluna + (num_colunas - 1) * gap + 2 * margem_lateral
+    if largura_necessaria > largura_rolo:
+        log.aviso(
+            f"{num_colunas} coluna(s) de {largura_coluna}px não cabem na largura "
+            f"do rolo configurada ({largura_rolo}px) — revise em Configurações.")
+    largura_folha = max(largura_rolo, largura_necessaria)
 
-    if not linhas:
-        return Image.new("RGBA", (CANVAS_W, 1), (0, 0, 0, 0))
+    num_linhas = -(-len(artes) // num_colunas)   # ceil sem importar math
+    altura_folha = num_linhas * altura_coluna + (num_linhas - 1) * gap
 
-    largura_maxima_linha = max(
-        sum(im.width for im in linha) + GAP_ENTRE_ARTES * (len(linha) - 1)
-        for linha in linhas
-    ) + 2 * MARGEM_LATERAL
-    largura_folha = max(CANVAS_W, largura_maxima_linha)
+    folha = Image.new("RGBA", (largura_folha, altura_folha), (0, 0, 0, 0))
+    for i, (_, img) in enumerate(artes):
+        linha, col = divmod(i, num_colunas)
+        ajustada = _ajustar_para_celula(img, largura_coluna, altura_coluna)
+        x_celula = margem_lateral + col * (largura_coluna + gap)
+        y_celula = linha * (altura_coluna + gap)
+        x = x_celula + (largura_coluna - ajustada.width) // 2
+        y = y_celula + (altura_coluna - ajustada.height) // 2
+        folha.paste(ajustada, (x, y), ajustada)
 
-    altura_total = (sum(max(im.height for im in linha) for linha in linhas)
-                    + GAP_ENTRE_ARTES * (len(linhas) - 1))
-
-    folha = Image.new("RGBA", (largura_folha, altura_total), (0, 0, 0, 0))
-    y = 0
-    for linha in linhas:
-        altura_linha = max(im.height for im in linha)
-        x = MARGEM_LATERAL
-        for im in linha:
-            folha.paste(im, (x, y), im)
-            x += im.width + GAP_ENTRE_ARTES
-        y += altura_linha + GAP_ENTRE_ARTES
-
-    return folha
-
-
-def montar_folha_times(artes: list[tuple[object, Image.Image]]) -> Image.Image:
-    """
-    Monta em 2 colunas de largura fixa dentro do rolo (57cm) — a mesma
-    disposição do DTF MANAGER original, usada aqui só para pedidos de Time
-    (uniformes têm tamanho uniforme, então a grade fixa faz sentido de novo).
-    """
-    imagens = [img for _, img in artes]
-    pares = [(imagens[i], imagens[i + 1] if i + 1 < len(imagens) else None)
-             for i in range(0, len(imagens), 2)]
-    alturas = [max(esq.height, dir_.height if dir_ else 0) for esq, dir_ in pares]
-
-    folha = Image.new("RGBA", (CANVAS_W, sum(alturas)), (0, 0, 0, 0))
-    y = 0
-    for (esq, dir_), h in zip(pares, alturas):
-        folha.paste(esq, (MARGEM_LATERAL, y), esq)
-        if dir_:
-            folha.paste(dir_, (COL_OFFSET + MARGEM_LATERAL, y), dir_)
-        y += h
     return folha
 
 
 def montar_folha_combinada(
         artes_profissao: list[tuple[object, Image.Image]],
-        artes_time: list[tuple[object, Image.Image]]) -> Image.Image:
+        artes_time: list[tuple[object, Image.Image]],
+        num_colunas: int, largura_coluna: int, altura_coluna: int, largura_rolo: int
+) -> Image.Image:
     """
     Ponto de entrada usado pelo pipeline de produção: monta a folha de Times
-    (2 colunas fixas) e a de Profissão (empacotada por linha) separadamente
-    e empilha as duas num único PNG/PDF final quando o lote tem os dois
-    tipos — cada categoria mantém sua própria disposição.
+    e a de Profissão separadamente (mesma configuração de grade pras duas) e
+    empilha as duas num único PNG/PDF final quando o lote tem os dois tipos.
     """
     partes = []
     if artes_time:
-        partes.append(montar_folha_times(artes_time))
+        partes.append(montar_folha_grade(
+            artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo))
     if artes_profissao:
-        partes.append(montar_folha(artes_profissao))
+        partes.append(montar_folha_grade(
+            artes_profissao, num_colunas, largura_coluna, altura_coluna, largura_rolo))
 
     if not partes:
-        return Image.new("RGBA", (CANVAS_W, 1), (0, 0, 0, 0))
+        return Image.new("RGBA", (max(1, largura_rolo), 1), (0, 0, 0, 0))
     if len(partes) == 1:
         return partes[0]
 
