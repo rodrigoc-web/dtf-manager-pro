@@ -1,0 +1,5 @@
+{
+  "versao": "1.0.0",
+  "data_lancamento": "2026-07-22",
+  "notas": "Versao 1.0.0 - Primeira versao do DTF MANAGER PRO. Artes de profissoes personalizadas por telefone, sem dependencia de planilha (dados 100% locais em SQLite)."
+}

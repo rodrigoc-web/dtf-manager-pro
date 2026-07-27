@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+build/
+dist/
+
+# Estado local — nunca versionar
+dtf_pro.db
+*.db
+*.db.bak
+*.bak
+config_app.json
+output/
+logs/
+backups/
+assets/psds/
+assets/thumbs/
+
+# Ambiente de testes
+.pytest_cache/
+tests/__pycache__/
