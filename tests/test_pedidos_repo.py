@@ -79,3 +79,58 @@ def test_inserir_em_lote(db):
     ids = pedidos_repo.inserir_pedidos_em_lote(db, pedidos)
     assert len(ids) == 2
     assert len(pedidos_repo.listar_pendentes(db)) == 2
+
+
+# ── ordem / mover_pedido ──────────────────────────────────────────────────
+
+def _inserir_tres(db, mid):
+    a = pedidos_repo.inserir_pedido(db, Pedido(
+        id=None, modelo_id=mid, profissao="ELETRICISTA", dados={"telefone": "1"}))
+    b = pedidos_repo.inserir_pedido(db, Pedido(
+        id=None, modelo_id=mid, profissao="ELETRICISTA", dados={"telefone": "2"}))
+    c = pedidos_repo.inserir_pedido(db, Pedido(
+        id=None, modelo_id=mid, profissao="ELETRICISTA", dados={"telefone": "3"}))
+    return a, b, c
+
+
+def test_ordem_inicial_e_a_de_criacao(db):
+    mid = _modelo_id(db)
+    a, b, c = _inserir_tres(db, mid)
+    assert [p.id for p in pedidos_repo.listar_pendentes(db)] == [a, b, c]
+
+
+def test_mover_pedido_para_cima(db):
+    mid = _modelo_id(db)
+    a, b, c = _inserir_tres(db, mid)
+    pedidos_repo.mover_pedido(db, c, "cima")
+    assert [p.id for p in pedidos_repo.listar_pendentes(db)] == [a, c, b]
+
+
+def test_mover_pedido_para_baixo(db):
+    mid = _modelo_id(db)
+    a, b, c = _inserir_tres(db, mid)
+    pedidos_repo.mover_pedido(db, a, "baixo")
+    assert [p.id for p in pedidos_repo.listar_pendentes(db)] == [b, a, c]
+
+
+def test_mover_pedido_nas_bordas_nao_faz_nada(db):
+    mid = _modelo_id(db)
+    a, b, c = _inserir_tres(db, mid)
+    pedidos_repo.mover_pedido(db, a, "cima")    # já é o primeiro
+    pedidos_repo.mover_pedido(db, c, "baixo")   # já é o último
+    assert [p.id for p in pedidos_repo.listar_pendentes(db)] == [a, b, c]
+
+
+def test_mover_pedido_nao_cruza_nivel_de_prioridade(db):
+    """Um Normal nunca pode pular na frente de um Urgente via reordenação manual."""
+    mid = _modelo_id(db)
+    normal = pedidos_repo.inserir_pedido(db, Pedido(
+        id=None, modelo_id=mid, profissao="ELETRICISTA", dados={"telefone": "1"},
+        prioridade=Prioridade.NORMAL))
+    urgente = pedidos_repo.inserir_pedido(db, Pedido(
+        id=None, modelo_id=mid, profissao="ELETRICISTA", dados={"telefone": "2"},
+        prioridade=Prioridade.URGENTE))
+    # urgente já vem primeiro (por prioridade); tentar mover o normal pra cima
+    # não deve trocar de nivel de prioridade
+    pedidos_repo.mover_pedido(db, normal, "cima")
+    assert [p.id for p in pedidos_repo.listar_pendentes(db)] == [urgente, normal]

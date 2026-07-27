@@ -114,6 +114,12 @@ def _migrar(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE pedidos ADD COLUMN marketplace TEXT NOT NULL DEFAULT ''")
     if "mensagem_erro" not in colunas_pedidos:
         conn.execute("ALTER TABLE pedidos ADD COLUMN mensagem_erro TEXT NOT NULL DEFAULT ''")
+    if "ordem" not in colunas_pedidos:
+        conn.execute("ALTER TABLE pedidos ADD COLUMN ordem INTEGER NOT NULL DEFAULT 0")
+        # Pedidos já existentes ganham a própria ordem de criação como ordem
+        # inicial (id crescente já reflete isso) — sem essa migração, todos
+        # ficariam empatados em 0 e a ordenação dependeria de sorte do SQLite.
+        conn.execute("UPDATE pedidos SET ordem = id WHERE ordem = 0")
     if "telefone" in colunas_pedidos:
         # Migra pedidos antigos (telefone em coluna própria) para dados_json,
         # só quando dados_json ainda não foi preenchido para aquela linha.
@@ -143,13 +149,14 @@ def _migrar(conn: sqlite3.Connection) -> None:
                 produzido_em  TEXT NOT NULL DEFAULT '',
                 lote_id       TEXT NOT NULL DEFAULT '',
                 marketplace   TEXT NOT NULL DEFAULT '',
-                mensagem_erro TEXT NOT NULL DEFAULT ''
+                mensagem_erro TEXT NOT NULL DEFAULT '',
+                ordem         INTEGER NOT NULL DEFAULT 0
             );
             INSERT INTO pedidos_novo
                 (id, modelo_id, profissao, dados_json, operador, quantidade,
-                 prioridade, status, criado_em, produzido_em, lote_id)
+                 prioridade, status, criado_em, produzido_em, lote_id, ordem)
             SELECT id, modelo_id, profissao, dados_json, operador, quantidade,
-                   prioridade, status, criado_em, produzido_em, lote_id
+                   prioridade, status, criado_em, produzido_em, lote_id, id
             FROM pedidos;
             DROP TABLE pedidos;
             ALTER TABLE pedidos_novo RENAME TO pedidos;

@@ -67,6 +67,7 @@ class Pedido:
     produzido_em: str          = ""
     lote_id:      str          = ""
     mensagem_erro: str         = ""
+    ordem:        int          = 0
     estado:       EstadoPedido = field(default=EstadoPedido.NOVO, compare=False)
 
     @property

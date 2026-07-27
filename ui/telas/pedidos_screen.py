@@ -9,12 +9,13 @@ de acesso por operador (cada um só acessa seu próprio programa/instância),
 não como texto livre digitado na hora de criar o pedido.
 """
 from __future__ import annotations
+import queue
 import threading
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
 from domain.models import Pedido
-from domain.enums import Prioridade, ModoExecucao, TipoModelo
+from domain.enums import Prioridade, ModoExecucao, TipoModelo, EstadoPedido
 from domain.events import EventBus, TipoEvento
 from core.constants import CAMPOS_POR_TIPO
 from core.exceptions import DTFError
@@ -49,6 +50,15 @@ class PedidosScreen(ctk.CTkFrame):
         self._modelo_selecionado = None
         self._rodando = False
         self._on_concluido = on_concluido
+
+        # Resumo ao vivo da fila durante uma produção — os eventos chegam de
+        # uma thread de background (production_service roda em thread), então
+        # só empilham numa fila; quem drena e toca widget é o polling na
+        # thread principal (mesmo padrão já usado pra geração de miniatura).
+        self._fila_estados: queue.Queue = queue.Queue()
+        self._fila_progresso: queue.Queue = queue.Queue()
+        self._estados_pedidos: dict[int, EstadoPedido] = {}
+        self._total_fila_atual = 0
 
         self.grid_columnconfigure(0, weight=1)
         # minsize garante a tabela visível de verdade mesmo numa janela baixa —
@@ -549,19 +559,30 @@ class PedidosScreen(ctk.CTkFrame):
         prog = ctk.CTkFrame(self, fg_color="transparent")
         prog.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 0))
         prog.grid_columnconfigure(0, weight=1)
+        self._lbl_fila = ctk.CTkLabel(prog, text="", font=ctk.CTkFont("Segoe UI", 10, "bold"),
+                                      text_color=TEXTO, anchor="w")
+        self._lbl_fila.grid(row=0, column=0, sticky="w", pady=(0, 3))
         self._prog_bar = ctk.CTkProgressBar(prog, height=6, progress_color=VERDE,
                                             fg_color=BORDA, corner_radius=3)
-        self._prog_bar.grid(row=0, column=0, sticky="ew")
+        self._prog_bar.grid(row=1, column=0, sticky="ew")
         self._prog_bar.set(0)
         self._lbl_status = ctk.CTkLabel(prog, text="", font=ctk.CTkFont("Segoe UI", 9),
                                         text_color=SUB, anchor="w")
-        self._lbl_status.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        self._lbl_status.grid(row=2, column=0, sticky="w", pady=(4, 0))
 
     def _registrar_progresso(self):
+        # Os dois handlers abaixo são chamados pela thread de produção
+        # (production_service roda em background) — nenhum dos dois pode
+        # tocar widget/self.after direto de lá (RuntimeError "main thread
+        # is not in main loop", já visto antes na geração de miniatura).
+        # Os dois só empilham; quem drena e atualiza a UI é o polling único
+        # abaixo, sempre na thread principal.
         bus = EventBus.get()
         for tipo, (pct, status) in _ETAPAS.items():
-            bus.subscribe(tipo, lambda e, p=pct, s=status:
-                          self.after(0, lambda p=p, s=s: self._set_progresso(p, s)))
+            bus.subscribe(tipo, lambda e, p=pct, s=status: self._fila_progresso.put((p, s)))
+        bus.subscribe(TipoEvento.PEDIDO_ESTADO_MUDOU,
+                      lambda e: self._fila_estados.put(e.dados))
+        self._drenar_filas()
 
     def _set_progresso(self, pct: float, status: str):
         try:
@@ -569,6 +590,55 @@ class PedidosScreen(ctk.CTkFrame):
             self._lbl_status.configure(text=status)
         except Exception:
             pass
+
+    def _drenar_filas(self):
+        # Drena as DUAS filas por completo — inclusive a de estados — ANTES
+        # de reagir ao sinal de conclusão. Se `_restaurar()` fosse chamado no
+        # meio do drenar (como era antes) e lançasse qualquer exceção, o
+        # resto do método (a outra fila + o reagendamento do polling) nunca
+        # rodava — os últimos eventos (EXPORTADO/FINALIZADO) ficavam presos
+        # pra sempre e o resumo nunca fechava certo.
+        concluido = False
+        try:
+            while True:
+                pct, status = self._fila_progresso.get_nowait()
+                if pct == "__concluido__":
+                    concluido = True
+                else:
+                    self._set_progresso(pct, status)
+        except queue.Empty:
+            pass
+
+        houve_novo = False
+        try:
+            while True:
+                pedido_id, estado = self._fila_estados.get_nowait()
+                self._estados_pedidos[pedido_id] = estado
+                houve_novo = True
+        except queue.Empty:
+            pass
+        if houve_novo:
+            self._atualizar_resumo_fila()
+
+        if concluido:
+            self._restaurar()
+
+        try:
+            self.after(150, self._drenar_filas)
+        except Exception:
+            pass   # tela já foi destruída
+
+    def _atualizar_resumo_fila(self):
+        tocados = self._estados_pedidos
+        concluidos = sum(1 for e in tocados.values() if e == EstadoPedido.FINALIZADO)
+        erros = sum(1 for e in tocados.values() if e == EstadoPedido.ERRO)
+        processando = len(tocados) - concluidos - erros
+        aguardando = max(0, self._total_fila_atual - len(tocados))
+
+        partes = [f"{aguardando} aguardando", f"{processando} processando", f"{concluidos} concluído(s)"]
+        if erros:
+            partes.append(f"{erros} erro(s)")
+        self._lbl_fila.configure(text="  ·  ".join(partes))
 
     def _confirmar_gerar(self):
         if self._rodando:
@@ -589,8 +659,15 @@ class PedidosScreen(ctk.CTkFrame):
             self._run(ModoExecucao.TESTE)
 
     def _run(self, modo: ModoExecucao):
+        from infrastructure.db import pedidos_repo
         self._rodando = True
         self._btn_gerar.configure(state="disabled", text="⏳   Aguarde...")
+
+        # Reseta o resumo ao vivo pra essa execução — número real de pedidos
+        # que vão entrar na fila, sem inventar nada antes do primeiro evento.
+        self._estados_pedidos = {}
+        self._total_fila_atual = len(pedidos_repo.listar_pendentes(self._db))
+        self._atualizar_resumo_fila()
 
         def _worker():
             from services.production_service import executar
@@ -600,7 +677,10 @@ class PedidosScreen(ctk.CTkFrame):
             except Exception as e:
                 log.erro(f"Erro inesperado: {e}")
             finally:
-                self.after(0, self._restaurar)
+                # Mesmo cuidado de sempre: essa thread não pode chamar
+                # self.after()/_restaurar() direto — só sinaliza via fila,
+                # o polling (_drenar_filas) já rodando é quem chama de verdade.
+                self._fila_progresso.put(("__concluido__", None))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -672,11 +752,23 @@ class PedidosScreen(ctk.CTkFrame):
                                     text_color=SUB)
             chip.grid(row=0, column=3, sticky="w", padx=(0, 12))
 
-            ctk.CTkButton(linha, text=" Remover", width=80, height=26,
+            botoes = ctk.CTkFrame(linha, fg_color="transparent")
+            botoes.grid(row=0, column=4, sticky="e")
+            ctk.CTkButton(botoes, text="▲", width=24, height=26,
+                         font=ctk.CTkFont("Segoe UI", 10),
+                         fg_color=CARD, text_color=SUB, hover_color=VERDE_CLARO,
+                         border_color=BORDA, border_width=1,
+                         command=lambda p=p: self._mover(p, "cima")).pack(side="left", padx=(0, 2))
+            ctk.CTkButton(botoes, text="▼", width=24, height=26,
+                         font=ctk.CTkFont("Segoe UI", 10),
+                         fg_color=CARD, text_color=SUB, hover_color=VERDE_CLARO,
+                         border_color=BORDA, border_width=1,
+                         command=lambda p=p: self._mover(p, "baixo")).pack(side="left", padx=(0, 6))
+            ctk.CTkButton(botoes, text=" Remover", width=80, height=26,
                          image=icons.imagem(icons.LIXEIRA, tam=12, cor=VERMELHO), compound="left",
                          fg_color=CARD, text_color=VERMELHO, hover_color=VERMELHO_BG,
                          border_color=BORDA, border_width=1,
-                         command=lambda p=p: self._remover(p)).grid(row=0, column=4, sticky="e")
+                         command=lambda p=p: self._remover(p)).pack(side="left")
 
     def _atualizar_estado_btn_gerar(self, quantidade_pendentes: int):
         """Cinza quando não há nada pra produzir, verde quando há fila."""
@@ -688,4 +780,9 @@ class PedidosScreen(ctk.CTkFrame):
     def _remover(self, pedido: Pedido):
         from infrastructure.db import pedidos_repo
         pedidos_repo.remover_pedido(self._db, pedido.id)
+        self.atualizar()
+
+    def _mover(self, pedido: Pedido, direcao: str):
+        from infrastructure.db import pedidos_repo
+        pedidos_repo.mover_pedido(self._db, pedido.id, direcao)
         self.atualizar()

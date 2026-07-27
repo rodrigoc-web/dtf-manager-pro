@@ -27,6 +27,7 @@ def _linha_para_pedido(linha) -> Pedido:
         produzido_em=linha["produzido_em"] if "produzido_em" in linha.keys() else "",
         lote_id=linha["lote_id"],
         mensagem_erro=linha["mensagem_erro"] if "mensagem_erro" in linha.keys() else "",
+        ordem=linha["ordem"] if "ordem" in linha.keys() else 0,
     )
 
 
@@ -40,8 +41,12 @@ def inserir_pedido(db_path: str, pedido: Pedido) -> int:
             (pedido.modelo_id, pedido.profissao, json.dumps(pedido.dados), pedido.operador,
              pedido.marketplace, pedido.quantidade, pedido.prioridade.value, pedido.status.value,
              pedido.criado_em or agora_str(), pedido.lote_id))
+        novo_id = cur.lastrowid
+        # ordem inicial = id (mesma ordem de criação de sempre) — só serve
+        # de ponto de partida, o operador pode reordenar depois com mover_pedido.
+        conn.execute("UPDATE pedidos SET ordem = ? WHERE id = ?", (novo_id, novo_id))
         conn.commit()
-        return cur.lastrowid
+        return novo_id
     except Exception as e:
         raise DBError(f"Erro ao criar pedido: {e}")
     finally:
@@ -61,7 +66,9 @@ def inserir_pedidos_em_lote(db_path: str, pedidos: list[Pedido]) -> list[int]:
                 (p.modelo_id, p.profissao, json.dumps(p.dados), p.operador, p.marketplace,
                  p.quantidade, p.prioridade.value, p.status.value, p.criado_em or agora_str(),
                  p.lote_id))
-            ids.append(cur.lastrowid)
+            novo_id = cur.lastrowid
+            conn.execute("UPDATE pedidos SET ordem = ? WHERE id = ?", (novo_id, novo_id))
+            ids.append(novo_id)
         conn.commit()
         return ids
     except Exception as e:
@@ -78,8 +85,37 @@ def listar_pendentes(db_path: str) -> list[Pedido]:
             "SELECT * FROM pedidos WHERE status = ?", (Status.PENDENTE.value,)
         ).fetchall()
         pedidos = [_linha_para_pedido(l) for l in linhas]
-        pedidos.sort(key=lambda p: ORDEM_PRIORIDADE.get(p.prioridade.value, 1))
+        pedidos.sort(key=lambda p: (ORDEM_PRIORIDADE.get(p.prioridade.value, 1), p.ordem))
         return pedidos
+    finally:
+        conn.close()
+
+
+def mover_pedido(db_path: str, pedido_id: int, direcao: str) -> None:
+    """Reordena manualmente dentro da fila de pendentes. `direcao` é "cima"
+    ou "baixo" — só troca de posição com o vizinho no MESMO nível de
+    prioridade, pra um pedido Normal nunca conseguir pular na frente de um
+    Urgente por engano."""
+    conn = get_connection(db_path)
+    try:
+        linhas = conn.execute(
+            "SELECT * FROM pedidos WHERE status = ?", (Status.PENDENTE.value,)).fetchall()
+        pendentes = [_linha_para_pedido(l) for l in linhas]
+        pendentes.sort(key=lambda p: (ORDEM_PRIORIDADE.get(p.prioridade.value, 1), p.ordem))
+
+        idx = next((i for i, p in enumerate(pendentes) if p.id == pedido_id), None)
+        if idx is None:
+            return
+        vizinho_idx = idx - 1 if direcao == "cima" else idx + 1
+        if vizinho_idx < 0 or vizinho_idx >= len(pendentes):
+            return
+        atual, vizinho = pendentes[idx], pendentes[vizinho_idx]
+        if atual.prioridade != vizinho.prioridade:
+            return
+
+        conn.execute("UPDATE pedidos SET ordem = ? WHERE id = ?", (vizinho.ordem, atual.id))
+        conn.execute("UPDATE pedidos SET ordem = ? WHERE id = ?", (atual.ordem, vizinho.id))
+        conn.commit()
     finally:
         conn.close()
 

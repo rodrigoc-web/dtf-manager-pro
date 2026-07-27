@@ -24,6 +24,8 @@ class TipoEvento(Enum):
     SHEETS_CONECTADO    = auto()
     SHEETS_ERRO         = auto()
     UPDATE_DISPONIVEL   = auto()
+    PEDIDO_ESTADO_MUDOU = auto()   # dados=(pedido_id, EstadoPedido) — sem mensagem
+                                    # de propósito, pra não poluir o log de execução
 
 
 @dataclass

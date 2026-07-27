@@ -53,6 +53,7 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
                     pedidos_repo.marcar_erro(db, p.id, "Dados de personalização vazios")
                 except Exception:
                     pass
+            log.pedido_estado(p.id, EstadoPedido.ERRO)
             continue
 
         if p.modelo_id not in modelos_cache:
@@ -72,11 +73,13 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
                         pedidos_repo.marcar_erro(db, p.id, str(e))
                     except Exception:
                         pass
+                log.pedido_estado(p.id, EstadoPedido.ERRO)
                 continue
 
         p.estado = EstadoPedido.VALIDADO
         validos.append(p)
         log.pedido_validado(f"{p.profissao} — {p.resumo}", p)
+        log.pedido_estado(p.id, p.estado)
 
     if not validos:
         log.erro("Nenhum pedido válido para produzir.")
@@ -96,6 +99,7 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
 
     for p in validos:
         p.estado = EstadoPedido.RENDERIZANDO
+        log.pedido_estado(p.id, p.estado)
         modelo = modelos_cache[p.modelo_id]
         try:
             tile = rend.renderizar_arte(p, modelo, fp)
@@ -103,6 +107,7 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
             for _ in range(max(1, p.quantidade)):
                 destino.append((p, tile))
             p.estado = EstadoPedido.ARTE_GERADA
+            log.pedido_estado(p.id, p.estado)
         except DTFError as e:
             log.erro(str(e))
             erros.append(str(e))
@@ -111,6 +116,16 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
                     pedidos_repo.marcar_erro(db, p.id, str(e))
                 except Exception:
                     pass
+            p.estado = EstadoPedido.ERRO
+            log.pedido_estado(p.id, p.estado)
+
+    # Um pedido que falhou aqui NÃO pode seguir pro resto do pipeline —
+    # sem isso, o `marcar_produzidos` lá embaixo (que usa `validos` inteiro)
+    # sobrescrevia o status ERRO de volta pra PRODUZIDO no fim do lote, e o
+    # relatório/histórico listava como produzido algo que nunca foi rendido.
+    # Mutação em lugar (não reatribuição) porque `lote.pedidos` aponta pro
+    # mesmo objeto de lista — assim o relatório também sai correto.
+    validos[:] = [p for p in validos if p.estado != EstadoPedido.ERRO]
 
     if not artes_profissao and not artes_time:
         return ResultadoProducao(sucesso=False, lote=lote, erros=erros)
@@ -135,6 +150,7 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
 
     for p in validos:
         p.estado = EstadoPedido.EXPORTADO
+        log.pedido_estado(p.id, p.estado)
 
     # ── 5. Histórico + banco (apenas em produção real) ─────────────────────
     if modo == ModoExecucao.PRODUCAO:
@@ -160,6 +176,7 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
 
     for p in validos:
         p.estado = EstadoPedido.FINALIZADO
+        log.pedido_estado(p.id, p.estado)
 
     log.producao_concluida(
         f"Lote {lote_id} | {len(validos)} pedido(s), "

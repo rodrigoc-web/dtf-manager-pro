@@ -44,3 +44,9 @@ def pedido_validado(msg: str = "", dados=None):
 
 def pedido_invalido(msg: str = "", dados=None):
     EventBus.get().publish(TipoEvento.PEDIDO_INVALIDO, msg, dados)
+
+
+def pedido_estado(pedido_id: int, estado) -> None:
+    """Sem mensagem de propósito — quem consome isso é o resumo ao vivo da
+    fila (tela Pedidos), não o log de execução."""
+    EventBus.get().publish(TipoEvento.PEDIDO_ESTADO_MUDOU, dados=(pedido_id, estado))
