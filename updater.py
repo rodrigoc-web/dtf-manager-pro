@@ -25,6 +25,7 @@ import re
 from datetime import date
 from pathlib import Path
 from urllib import request, error as url_error
+from core.constants import APP_NOME
 
 # ── Globais ───────────────────────────────────────────────────────────────────
 
@@ -308,46 +309,6 @@ def _gravar(resp, destino: Path, cb_progresso=None) -> bool:
         return False
 
 
-# ── Substituição via batch ────────────────────────────────────────────────────
-
-def _substituir_exe(novo_exe: Path, cb_status=None) -> bool:
-    try:
-        if getattr(sys, "frozen", False):
-            exe_atual = Path(sys.executable)
-        else:
-            exe_atual = BASE_DIR / "DTF MANAGER.exe"
-
-        if cb_status:
-            cb_status("Preparando substituição...")
-
-        bat = BASE_DIR / "_dtf_update.bat"
-        bat.write_text(
-            f"@echo off\n"
-            f"taskkill /f /im \"DTF MANAGER.exe\" > nul 2>&1\n"
-            f"timeout /t 6 /nobreak > nul\n"
-            f":retry\n"
-            f"rename \"{exe_atual}\" \"DTF MANAGER.old\" > nul 2>&1\n"
-            f"if exist \"{exe_atual}\" (\n"
-            f"    timeout /t 2 /nobreak > nul\n"
-            f"    goto retry\n"
-            f")\n"
-            f"move /y \"{novo_exe}\" \"{exe_atual}\"\n"
-            f"del /f /q \"{exe_atual.parent / 'DTF MANAGER.old'}\" > nul 2>&1\n"
-            f"start \"\" \"{exe_atual}\"\n"
-            f"del /f /q \"%~f0\"\n",
-            encoding="utf-8"
-        )
-        subprocess.Popen(
-            ["cmd", "/c", str(bat)],
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            close_fds=True
-        )
-        return True
-    except Exception as e:
-        print(f"[Updater] Erro substituição: {e}")
-        return False
-
-
 def _salvar_versao_local(versao: str, notas: str = ""):
     try:
         vf = BASE_DIR / "version.json"
@@ -449,7 +410,14 @@ class Updater:
 
                 # 5. SUBSTITUIR via batch — roda depois que o processo fechar
                 bat = BASE_DIR / "_dtf_update.bat"
-                exe_atual    = BASE_DIR / "DTF MANAGER.exe"
+                # exe_atual precisa ser o nome REAL do executável (sys.executable
+                # quando congelado) — um valor fixo "DTF MANAGER.exe" (sem "PRO")
+                # ficou aqui de um port do DTF MANAGER original e nunca batia
+                # com o nome de verdade do PRO ("DTF MANAGER PRO.exe"): o
+                # rename/move do .bat sempre falhava silenciosamente (arquivo
+                # não encontrado) e a atualização nunca substituía o exe antigo.
+                exe_atual = (Path(sys.executable) if getattr(sys, "frozen", False)
+                            else BASE_DIR / f"{APP_NOME}.exe")
                 version_json = BASE_DIR / "version.json"
                 # _internal pode estar junto ao exe ou na raiz do tmp
                 internal_src = novo_exe.parent / "_internal"
@@ -472,12 +440,7 @@ class Updater:
                     f"    robocopy \"{internal_src}\" \"{internal_dst}\" /e /purge /nfl /ndl /njh /njs > nul 2>&1\n"
                     f")\n"
                     f"rmdir /s /q \"{tmp_dir}\" > nul 2>&1\n"
-                    f"taskkill /f /im explorer.exe > nul 2>&1\n"
-                    f"del /f /q \"%localappdata%\\IconCache.db\" > nul 2>&1\n"
-                    f"del /f /q \"%localappdata%\\Microsoft\\Windows\\Explorer\\iconcache*.db\" > nul 2>&1\n"
-                    f"start explorer.exe\n"
-                    f"timeout /t 2 /nobreak > nul\n"
-                    f"start \"DTF MANAGER\" /d \"{exe_atual.parent}\" \"{exe_atual}\"\n"
+                    f"start \"{APP_NOME}\" /d \"{exe_atual.parent}\" \"{exe_atual}\"\n"
                     f"del /f /q \"%~f0\"\n",
                     encoding="utf-8"
                 )
