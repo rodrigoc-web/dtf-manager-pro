@@ -8,8 +8,8 @@ from __future__ import annotations
 import tkinter as tk
 import customtkinter as ctk
 from domain.enums import Status
-from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, VERDE, VERDE_CLARO,
-                      VERMELHO, CATEGORICA, MUTED)
+from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, VERDE, VERDE_CLARO, VERDE_BG,
+                      VERMELHO, VERMELHO_BG, CATEGORICA, MUTED)
 from ui import icons
 
 FATIAS_DONUT = 5   # top N profissões — o resto agrupa em "Outros"
@@ -120,19 +120,30 @@ class HistoricoScreen(ctk.CTkFrame):
                          text_color=SUB).grid(padx=14, pady=14, sticky="w")
         else:
             for i, p in enumerate(historico):
-                cor = VERDE if p.status == Status.PRODUZIDO else VERMELHO
-                marca = "✅" if p.status == Status.PRODUZIDO else "❌"
+                produzido = p.status == Status.PRODUZIDO
+                cor, cor_bg = (VERDE, VERDE_BG) if produzido else (VERMELHO, VERMELHO_BG)
                 quando = p.produzido_em or p.criado_em
                 operador = f" · {p.operador}" if p.operador else ""
+
                 linha = ctk.CTkFrame(self._lista, fg_color="transparent")
                 linha.grid(row=i, column=0, sticky="ew", padx=8, pady=3)
+                linha.grid_columnconfigure(2, weight=1)
+
+                # Barra de cor à esquerda — dá um ar de linha do tempo sem
+                # precisar desenhar uma timeline de verdade.
+                ctk.CTkFrame(linha, fg_color=cor, width=3, corner_radius=0).grid(
+                    row=0, column=0, sticky="ns", padx=(0, 10))
+
+                ctk.CTkLabel(linha, text=quando, font=ctk.CTkFont("Segoe UI", 9),
+                             text_color=SUB, width=110, anchor="w").grid(row=0, column=1, sticky="w")
                 ctk.CTkLabel(linha,
-                             text=f"{marca}  {p.profissao}  ·  {p.resumo}  ·  qtd {p.quantidade}"
-                                  f"{operador}  ·  {quando}  ·  lote {p.lote_id or '—'}",
-                             font=ctk.CTkFont("Segoe UI", 10),
-                             text_color=TEXTO, anchor="w").pack(side="left")
-                ctk.CTkLabel(linha, text=p.status.value,
+                             text=f"{p.profissao}  ·  {p.resumo}  ·  qtd {p.quantidade}"
+                                  f"{operador}  ·  lote {p.lote_id or '—'}",
+                             font=ctk.CTkFont("Segoe UI", 11),
+                             text_color=TEXTO, anchor="w").grid(row=0, column=2, sticky="w", padx=(0, 8))
+                ctk.CTkLabel(linha, text=f" {p.status.value} ",
                              font=ctk.CTkFont("Segoe UI", 9, "bold"),
-                             text_color=cor).pack(side="right")
+                             text_color=cor, fg_color=cor_bg, corner_radius=6).grid(
+                    row=0, column=3, sticky="e", padx=(8, 4))
 
         self._desenhar_donut(pedidos_repo.contagem_por_profissao(self._db))

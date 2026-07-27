@@ -12,15 +12,26 @@ from core.constants import APP_NOME, VERSAO
 from core import session
 from ui import icons
 
-ITENS = [
-    ("dashboard", icons.GRADE,     "Dashboard"),
-    ("pedidos",   icons.CLIPBOARD, "Pedidos"),
-    ("modelos",   icons.CAMADAS,   "Modelos"),
-    ("historico", icons.HISTORICO, "Histórico"),
-    ("erros",     icons.AVISO,     "Erros"),
-    ("config",    icons.ENGRENAGEM,"Configurações"),
-    ("ajuda",     icons.AJUDA,     "Ajuda"),
+# Agrupado em seções (com um rótulo pequeno acima de cada bloco) — só isso já
+# ajuda muito a navegação numa sidebar com 7 itens, em vez de uma lista única.
+SECOES = [
+    ("PRODUÇÃO", [
+        ("dashboard", icons.GRADE,     "Dashboard"),
+        ("pedidos",   icons.CLIPBOARD, "Pedidos"),
+        ("modelos",   icons.CAMADAS,   "Modelos"),
+    ]),
+    ("RELATÓRIOS", [
+        ("historico", icons.HISTORICO, "Histórico"),
+        ("erros",     icons.AVISO,     "Erros"),
+    ]),
+    ("SISTEMA", [
+        ("config",    icons.ENGRENAGEM, "Configurações"),
+        ("ajuda",     icons.AJUDA,      "Ajuda"),
+    ]),
 ]
+# Lista plana derivada — usada só onde a divisão em seções não importa
+# (ex.: achar o título de um item pelo chave).
+ITENS = [item for _, itens in SECOES for item in itens]
 
 
 class Sidebar(ctk.CTkFrame):
@@ -35,36 +46,40 @@ class Sidebar(ctk.CTkFrame):
         self._ativo: str | None = None
 
         cabecalho = ctk.CTkFrame(self, fg_color="transparent")
-        cabecalho.pack(fill="x", pady=(22, 20), padx=18)
+        cabecalho.pack(fill="x", pady=(18, 14), padx=18)
 
         icone = self._carregar_icone()
         linha_topo = ctk.CTkFrame(cabecalho, fg_color="transparent")
         linha_topo.pack(anchor="w")
         if icone:
-            ctk.CTkLabel(linha_topo, image=icone, text="").pack(side="left", padx=(0, 10))
+            ctk.CTkLabel(linha_topo, image=icone, text="").pack(side="left", padx=(0, 8))
         textos = ctk.CTkFrame(linha_topo, fg_color="transparent")
         textos.pack(side="left")
         ctk.CTkLabel(textos, text="DTF MANAGER",
-                     font=ctk.CTkFont("Segoe UI", 15, "bold"),
+                     font=ctk.CTkFont("Segoe UI", 14, "bold"),
                      text_color=BRANCO, anchor="w").pack(anchor="w")
         ctk.CTkLabel(textos, text="PRO",
-                     font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                     font=ctk.CTkFont("Segoe UI", 10, "bold"),
                      text_color=SIDEBAR_ATIVO, anchor="w").pack(anchor="w")
 
-        for chave, ico, titulo in ITENS:
-            img_inativo = icons.imagem(ico, tam=17, cor=SIDEBAR_TEXTO)
-            img_ativo   = icons.imagem(ico, tam=17, cor=SIDEBAR_TEXTO_ATIVO)
-            self._img_inativo[chave] = img_inativo
-            self._img_ativo[chave]   = img_ativo
-            btn = ctk.CTkButton(
-                self, text=f"  {titulo}", image=img_inativo, compound="left",
-                font=ctk.CTkFont("Segoe UI", 12),
-                anchor="w", height=44, corner_radius=10,
-                fg_color="transparent", text_color=SIDEBAR_TEXTO,
-                hover_color=SIDEBAR_HOVER,
-                command=lambda c=chave: self._on_navegar(c))
-            btn.pack(fill="x", padx=14, pady=3)
-            self._botoes[chave] = btn
+        for nome_secao, itens in SECOES:
+            ctk.CTkLabel(self, text=nome_secao, font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                         text_color=SIDEBAR_TEXTO, anchor="w").pack(
+                fill="x", padx=22, pady=(12, 4))
+            for chave, ico, titulo in itens:
+                img_inativo = icons.imagem(ico, tam=17, cor=SIDEBAR_TEXTO)
+                img_ativo   = icons.imagem(ico, tam=17, cor=SIDEBAR_TEXTO_ATIVO)
+                self._img_inativo[chave] = img_inativo
+                self._img_ativo[chave]   = img_ativo
+                btn = ctk.CTkButton(
+                    self, text=f"  {titulo}", image=img_inativo, compound="left",
+                    font=ctk.CTkFont("Segoe UI", 12),
+                    anchor="w", height=40, corner_radius=10,
+                    fg_color="transparent", text_color=SIDEBAR_TEXTO,
+                    hover_color=SIDEBAR_HOVER,
+                    command=lambda c=chave: self._on_navegar(c))
+                btn.pack(fill="x", padx=14, pady=2)
+                self._botoes[chave] = btn
 
         ctk.CTkLabel(self, text=f"v{VERSAO}",
                      font=ctk.CTkFont("Segoe UI", 9),
@@ -110,7 +125,7 @@ class Sidebar(ctk.CTkFrame):
             if not caminho.exists():
                 return None
             img = Image.open(caminho)
-            return ctk.CTkImage(light_image=img, dark_image=img, size=(72, 72))
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(44, 44))
         except Exception:
             return None
 

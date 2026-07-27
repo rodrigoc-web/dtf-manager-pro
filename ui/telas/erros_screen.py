@@ -7,7 +7,7 @@ novo a não ser recriar o pedido do zero.
 from __future__ import annotations
 import customtkinter as ctk
 from tkinter import messagebox
-from ui.theme import FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_CLARO, VERMELHO, VERMELHO_BG
+from ui.theme import FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_CLARO, VERMELHO, VERMELHO_BG, AMARELO_BG
 from ui import icons
 
 
@@ -53,21 +53,27 @@ class ErrosScreen(ctk.CTkFrame):
             linha = ctk.CTkFrame(self._lista, fg_color=FUNDO, corner_radius=8,
                                  border_width=1, border_color=BORDA)
             linha.grid(row=i, column=0, sticky="ew", padx=8, pady=4)
-            linha.grid_columnconfigure(0, weight=1)
+            linha.grid_columnconfigure(1, weight=1)
+
+            selo = ctk.CTkFrame(linha, fg_color=AMARELO_BG, corner_radius=18, width=36, height=36)
+            selo.grid(row=0, column=0, padx=(12, 10), pady=8)
+            selo.grid_propagate(False)
+            ctk.CTkLabel(selo, text=icons.AVISO, font=icons.fonte(15),
+                         text_color=VERMELHO, fg_color="transparent").place(relx=0.5, rely=0.5, anchor="center")
 
             info = ctk.CTkFrame(linha, fg_color="transparent")
-            info.grid(row=0, column=0, sticky="ew", padx=10, pady=8)
+            info.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=8)
             ctk.CTkLabel(info,
                          text=f"{p.profissao}  ·  {p.resumo}  ·  qtd {p.quantidade}"
                               f"{'  ·  ' + p.operador if p.operador else ''}  ·  {p.criado_em}",
-                         font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                         font=ctk.CTkFont("Segoe UI", 12, "bold"),
                          text_color=TEXTO, anchor="w").pack(anchor="w")
             ctk.CTkLabel(info, text=p.mensagem_erro or "Sem detalhes do erro.",
-                         font=ctk.CTkFont("Segoe UI", 9), text_color=VERMELHO,
+                         font=ctk.CTkFont("Segoe UI", 10), text_color=VERMELHO,
                          anchor="w", wraplength=560, justify="left").pack(anchor="w", pady=(2, 0))
 
             botoes = ctk.CTkFrame(linha, fg_color="transparent")
-            botoes.grid(row=0, column=1, padx=10, pady=8, sticky="e")
+            botoes.grid(row=0, column=2, padx=10, pady=8, sticky="e")
             ctk.CTkButton(botoes, text=" Reprocessar", height=30, width=120,
                          image=icons.imagem(icons.ATUALIZAR, tam=12, cor=BRANCO), compound="left",
                          fg_color=VERDE, hover_color=VERDE_CLARO, text_color=BRANCO,

@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime
 import tkinter as tk
 import customtkinter as ctk
-from ui.theme import CARD, BORDA, VERDE, VERDE_CLARO, TEXTO, SUB, FUNDO, BRANCO
+from ui.theme import CARD, BORDA, VERDE, VERDE_CLARO, TEXTO, SUB, FUNDO, BRANCO, AMARELO, AMARELO_BG
 from core.constants import META_DIA
 from ui import icons
 
@@ -71,20 +71,20 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _montar_alertas(self):
         self._banner_alertas = ctk.CTkFrame(
-            self, fg_color="#FEF3E2", corner_radius=10,
-            border_width=1, border_color="#F5C97A")
+            self, fg_color=AMARELO_BG, corner_radius=10,
+            border_width=1, border_color=AMARELO)
         self._banner_alertas.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 8))
         self._banner_alertas.grid_columnconfigure(0, weight=1)
         conteudo = ctk.CTkFrame(self._banner_alertas, fg_color="transparent")
         conteudo.grid(row=0, column=0, sticky="ew", padx=12, pady=8)
         conteudo.grid_columnconfigure(0, weight=1)
         self._lbl_alerta = ctk.CTkLabel(
-            conteudo, text="", font=ctk.CTkFont("Segoe UI", 10, "bold"),
-            text_color="#92400E", anchor="w")
+            conteudo, text="", font=ctk.CTkFont("Segoe UI", 11, "bold"),
+            text_color=AMARELO, anchor="w")
         self._lbl_alerta.grid(row=0, column=0, sticky="w")
         self._btn_alerta_erros = ctk.CTkButton(
             conteudo, text="Ver erros  →", height=24, width=90,
-            fg_color="transparent", text_color="#92400E", hover_color="#F5C97A",
+            fg_color="transparent", text_color=AMARELO, hover_color=AMARELO_BG,
             font=ctk.CTkFont("Segoe UI", 9, "bold"),
             command=lambda: self._navegar("erros"))
         self._btn_alerta_erros.grid(row=0, column=1, padx=(8, 0))
@@ -153,7 +153,7 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _card_kpi(self, row, col, icone_char, titulo, destino: str, sparkline: bool = False) -> dict:
         c = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
-                         border_width=1, border_color=BORDA, height=112)
+                         border_width=1, border_color=BORDA, height=118)
         c.grid(row=row, column=col, padx=(16 if col == 0 else 8, 8 if col < 3 else 16),
                pady=(0, 8), sticky="nsew")
         c.grid_propagate(False)
@@ -169,11 +169,16 @@ class DashboardScreen(ctk.CTkFrame):
                                  text_color=VERDE)
         lbl_badge.pack(side="right")
 
-        ctk.CTkLabel(c, text=titulo, font=ctk.CTkFont("Segoe UI", 8, "bold"),
-                     text_color=SUB).pack(anchor="w", padx=14, pady=(8, 0))
-        lbl_numero = ctk.CTkLabel(c, text="...", font=ctk.CTkFont("Segoe UI", 18, "bold"),
+        # Número em destaque (estilo Notion) — é o que o operador bate o olho
+        # primeiro, o resto do card é só contexto. "Próximo lote" é um texto
+        # (DTF_000004), bem mais longo que os outros cards (só dígitos) — por
+        # isso uma fonte menor aqui, senão corta na largura fixa do card.
+        tam_fonte = 22 if titulo == "PRÓXIMO LOTE" else 28
+        lbl_numero = ctk.CTkLabel(c, text="...", font=ctk.CTkFont("Segoe UI", tam_fonte, "bold"),
                                   text_color=TEXTO)
-        lbl_numero.pack(anchor="w", padx=14)
+        lbl_numero.pack(anchor="w", padx=14, pady=(6, 0))
+        ctk.CTkLabel(c, text=titulo, font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB).pack(anchor="w", padx=14, pady=(0, 2))
 
         linha_sub = ctk.CTkButton(
             c, fg_color="transparent", hover_color=VERDE_CLARO, corner_radius=6,
@@ -227,7 +232,7 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _montar_analytics(self):
         linha = ctk.CTkFrame(self._corpo, fg_color="transparent")
-        linha.grid(row=1, column=0, columnspan=4, sticky="nsew", padx=16, pady=(4, 8))
+        linha.grid(row=1, column=0, columnspan=4, sticky="nsew", padx=16, pady=(0, 8))
         linha.grid_columnconfigure((0, 1, 2, 3), weight=1)
         linha.grid_rowconfigure(0, weight=1)
 
@@ -235,7 +240,7 @@ class DashboardScreen(ctk.CTkFrame):
         meta = ctk.CTkFrame(linha, fg_color=CARD, corner_radius=14,
                             border_width=1, border_color=BORDA)
         meta.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        icons.rotulo(meta, icons.BANDEIRA, "META DO DIA", tam_icone=12, tam_texto=9,
+        icons.rotulo(meta, icons.BANDEIRA, "META DO DIA", tam_icone=12, tam_texto=10,
                     negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(12, 2))
         self._cv = tk.Canvas(meta, width=64, height=64, bg=CARD, highlightthickness=0)
         self._cv.pack(pady=(6, 4))
@@ -255,7 +260,7 @@ class DashboardScreen(ctk.CTkFrame):
         op = ctk.CTkFrame(linha, fg_color=CARD, corner_radius=14,
                           border_width=1, border_color=BORDA)
         op.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
-        icons.rotulo(op, icons.ESTRELA, "OPERADOR DO MÊS", tam_icone=12, tam_texto=9,
+        icons.rotulo(op, icons.ESTRELA, "OPERADOR DO MÊS", tam_icone=12, tam_texto=10,
                     negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(12, 4))
         self.lbl_operador_nome = ctk.CTkLabel(op, text="—",
                                               font=ctk.CTkFont("Segoe UI", 16, "bold"),
@@ -270,7 +275,7 @@ class DashboardScreen(ctk.CTkFrame):
         c = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
                          border_width=1, border_color=BORDA)
         c.grid(row=0, column=col, sticky="nsew", padx=8)
-        icons.rotulo(c, icone_char, titulo, tam_icone=12, tam_texto=9,
+        icons.rotulo(c, icone_char, titulo, tam_icone=12, tam_texto=10,
                     negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(12, 4))
         corpo = ctk.CTkFrame(c, fg_color="transparent")
         corpo.pack(fill="both", expand=True, padx=14, pady=(0, 12))

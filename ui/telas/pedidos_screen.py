@@ -162,13 +162,15 @@ class PedidosScreen(ctk.CTkFrame):
                      border_color=BORDA, border_width=1,
                      command=self._abrir_pasta_saida).pack(side="left")
 
-        # Linha 4: Gerar Produção — linha própria, de fora a fora, em destaque
+        # Linha 4: Gerar Produção — botão compacto (estilo Adobe), alinhado à
+        # direita, não precisa gritar pra ser o principal. Fica cinza quando
+        # não há nada pra produzir, verde quando há pedidos na fila.
         self._btn_gerar = ctk.CTkButton(
-            card, text="▶  Gerar Produção", height=44, corner_radius=8,
-            font=ctk.CTkFont("Segoe UI", 13, "bold"),
+            card, text="▶  Gerar Produção", height=36, width=180, corner_radius=8,
+            font=ctk.CTkFont("Segoe UI", 12, "bold"),
             fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
             command=self._confirmar_gerar)
-        self._btn_gerar.grid(row=4, column=0, sticky="ew", padx=12, pady=(0, 12))
+        self._btn_gerar.grid(row=4, column=0, sticky="e", padx=12, pady=(0, 12))
 
     def _marcar_categoria_ativa(self):
         for tipo, btn in self._botoes_categoria.items():
@@ -633,15 +635,17 @@ class PedidosScreen(ctk.CTkFrame):
         cabecalho = ctk.CTkFrame(self._lista, fg_color="transparent")
         cabecalho.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
         cabecalho.grid_columnconfigure(0, weight=2)
-        cabecalho.grid_columnconfigure(1, weight=1)
-        cabecalho.grid_columnconfigure(2, weight=1)
-        for col, texto in ((0, "Pedido"), (1, "Quantidade"), (2, "Detalhes")):
-            ctk.CTkLabel(cabecalho, text=texto, font=ctk.CTkFont("Segoe UI", 10, "bold"),
-                         text_color=SUB, anchor="w").grid(row=0, column=col, sticky="w", padx=(0, 8))
+        cabecalho.grid_columnconfigure(1, weight=2)
+        cabecalho.grid_columnconfigure(2, weight=0)
+        cabecalho.grid_columnconfigure(3, weight=0)
+        for col, texto in ((0, "Pedido"), (1, "Detalhes"), (2, "Qtd."), (3, "Prioridade")):
+            ctk.CTkLabel(cabecalho, text=texto, font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                         text_color=SUB, anchor="w").grid(row=0, column=col, sticky="w", padx=(0, 12))
         ctk.CTkFrame(self._lista, fg_color=BORDA, height=1, corner_radius=0).grid(
             row=1, column=0, sticky="ew", padx=10)
 
         pendentes = pedidos_repo.listar_pendentes(self._db)
+        self._atualizar_estado_btn_gerar(len(pendentes))
         if not pendentes:
             ctk.CTkLabel(self._lista, text="Nenhum pedido pendente.",
                          text_color=SUB).grid(row=2, column=0, padx=14, pady=14, sticky="w")
@@ -651,22 +655,35 @@ class PedidosScreen(ctk.CTkFrame):
             linha = ctk.CTkFrame(self._lista, fg_color="transparent")
             linha.grid(row=i + 2, column=0, sticky="ew", padx=10, pady=6)
             linha.grid_columnconfigure(0, weight=2)
-            linha.grid_columnconfigure(1, weight=1)
-            linha.grid_columnconfigure(2, weight=1)
+            linha.grid_columnconfigure(1, weight=2)
 
-            nome_pedido = p.profissao + ("  ·  URGENTE" if p.prioridade == Prioridade.URGENTE else "")
-            cor_pedido = VERMELHO if p.prioridade == Prioridade.URGENTE else TEXTO
-            ctk.CTkLabel(linha, text=nome_pedido, font=ctk.CTkFont("Segoe UI", 11),
-                         text_color=cor_pedido, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 8))
-            ctk.CTkLabel(linha, text=str(p.quantidade), font=ctk.CTkFont("Segoe UI", 11),
-                         text_color=TEXTO, anchor="w").grid(row=0, column=1, sticky="w", padx=(0, 8))
+            ctk.CTkLabel(linha, text=p.profissao, font=ctk.CTkFont("Segoe UI", 11),
+                         text_color=TEXTO, anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 12))
             ctk.CTkLabel(linha, text=p.resumo, font=ctk.CTkFont("Segoe UI", 11),
-                         text_color=TEXTO, anchor="w").grid(row=0, column=2, sticky="w", padx=(0, 8))
+                         text_color=TEXTO, anchor="w").grid(row=0, column=1, sticky="w", padx=(0, 12))
+            ctk.CTkLabel(linha, text=str(p.quantidade), font=ctk.CTkFont("Segoe UI", 11),
+                         text_color=TEXTO, anchor="w").grid(row=0, column=2, sticky="w", padx=(0, 12))
+
+            if p.prioridade == Prioridade.URGENTE:
+                chip = ctk.CTkLabel(linha, text=" URGENTE ", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                                    text_color=VERMELHO, fg_color=VERMELHO_BG, corner_radius=6)
+            else:
+                chip = ctk.CTkLabel(linha, text="Normal", font=ctk.CTkFont("Segoe UI", 10),
+                                    text_color=SUB)
+            chip.grid(row=0, column=3, sticky="w", padx=(0, 12))
+
             ctk.CTkButton(linha, text=" Remover", width=80, height=26,
                          image=icons.imagem(icons.LIXEIRA, tam=12, cor=VERMELHO), compound="left",
                          fg_color=CARD, text_color=VERMELHO, hover_color=VERMELHO_BG,
                          border_color=BORDA, border_width=1,
-                         command=lambda p=p: self._remover(p)).grid(row=0, column=3, sticky="e")
+                         command=lambda p=p: self._remover(p)).grid(row=0, column=4, sticky="e")
+
+    def _atualizar_estado_btn_gerar(self, quantidade_pendentes: int):
+        """Cinza quando não há nada pra produzir, verde quando há fila."""
+        if quantidade_pendentes > 0:
+            self._btn_gerar.configure(fg_color=VERDE, hover_color=VERDE_HOVER, state="normal")
+        else:
+            self._btn_gerar.configure(fg_color=BORDA, hover_color=BORDA, state="disabled")
 
     def _remover(self, pedido: Pedido):
         from infrastructure.db import pedidos_repo

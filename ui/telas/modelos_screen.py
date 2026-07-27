@@ -40,8 +40,8 @@ ABAS = [(TipoModelo.PROFISSAO, icons.CAMADAS, "Profissões"), (TipoModelo.TIME, 
 
 class ModelosScreen(ctk.CTkFrame):
     TAM_MINIATURA = 56
-    TAM_PREVIEW = 260
-    LARGURA_PAINEL = 300
+    TAM_PREVIEW = 300
+    LARGURA_PAINEL = 340
 
     def __init__(self, master, db_path: str, fonte_path: str, **kw):
         super().__init__(master, fg_color=FUNDO, corner_radius=0, **kw)
