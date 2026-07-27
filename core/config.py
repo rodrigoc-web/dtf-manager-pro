@@ -31,3 +31,23 @@ def salvar_config_app(config_app_path: str, dados: dict):
             encoding="utf-8")
     except Exception as e:
         raise ConfigError(f"Erro ao salvar configurações: {e}")
+
+
+def semear_arquivo_gravavel(destino: Path, origem: Path) -> bool:
+    """
+    Copia `origem` -> `destino` só se `destino` ainda não existir. Usado pra
+    config_app.json/version.json: o PyInstaller empacota o "modelo" desses
+    arquivos dentro de _internal/ (sistema_dir), fora do alcance de escrita
+    e apagado/substituído a cada update — a 1ª execução copia pra uma pasta
+    gravável que sobrevive a updates futuros e ainda pode ser editada à mão.
+    Retorna True se copiou, False se não havia nada a fazer (já existia, ou
+    o modelo não existe, ou são o mesmo arquivo).
+    """
+    import shutil
+    if destino.exists() or not origem.exists() or origem == destino:
+        return False
+    try:
+        shutil.copy2(origem, destino)
+        return True
+    except OSError:
+        return False

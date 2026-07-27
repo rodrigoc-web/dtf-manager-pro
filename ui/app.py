@@ -86,10 +86,22 @@ class DTFProApp(ctk.CTk):
         UI por fila — nunca chamar .after()/widget direto de dentro de uma
         thread, já vimos esse RuntimeError antes (geração de miniatura)."""
         import queue
-        from pathlib import Path
         import updater
+        from core.config import semear_arquivo_gravavel
+        from infrastructure.filesystem import config_app_json, version_json, sistema_dir
+
         self._fila_updates: queue.Queue = queue.Queue()
-        updater.init_updater(Path(self._base), Path(self._base) / "config_app.json")
+
+        # config_app.json e version.json (a update_url e a versão real do
+        # build) são empacotados dentro de _internal/ (sistema_dir) pelo
+        # PyInstaller — não ficam ao lado do .exe. Semeia cópias GRAVÁVEIS
+        # em base_dir() na 1ª execução, pra sobreviver a updates futuros
+        # (que só substituem o conteúdo de _internal) e ainda permitir
+        # edição manual local sem perder o valor original do build.
+        semear_arquivo_gravavel(config_app_json(), sistema_dir() / "config_app.json")
+        semear_arquivo_gravavel(version_json(), sistema_dir() / "version.json")
+
+        updater.init_updater(config_app_json().parent, config_app_json())
         updater.checar_na_inicializacao(
             lambda resultado: self._fila_updates.put(("auto", resultado)))
         self._drenar_fila_updates()
