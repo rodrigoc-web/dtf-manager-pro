@@ -174,18 +174,14 @@ class LoginDialog(ctk.CTkToplevel):
         self.after(80, lambda: self._combo.focus_set() if hasattr(self, "_combo") else None)
 
     def _montar_logo(self, master):
-        linha = ctk.CTkFrame(master, fg_color="transparent")
-        linha.pack(anchor="w", pady=(0, self._px(34)))
-
-        icone = self._carregar_icone(self._px(56))
-        if icone:
-            ctk.CTkLabel(linha, image=icone, text="").pack(side="left", padx=(0, self._px(12)))
-        textos = ctk.CTkFrame(linha, fg_color="transparent")
-        textos.pack(side="left")
-        ctk.CTkLabel(textos, text="DTF MANAGER", font=self._fnt(20, True),
-                     text_color=BRANCO, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(textos, text="PRO", font=self._fnt(12, True),
-                     text_color=VERDE_GLOW, anchor="w").pack(anchor="w")
+        # Logo = a IMAGEM de verdade (assets/logo_completo.png), não texto
+        # recriado com fonte de sistema — nenhuma fonte instalada reproduz a
+        # tipografia customizada do logo original, então só a imagem garante
+        # ficar idêntico ao arquivo que o usuário forneceu.
+        logo = self._carregar_logo_completo(self._px(280))
+        if logo:
+            ctk.CTkLabel(master, image=logo, text="").pack(
+                anchor="w", pady=(0, self._px(34)))
 
     def _carregar_icone(self, tam: int):
         try:
@@ -196,6 +192,19 @@ class LoginDialog(ctk.CTkToplevel):
                 return None
             img = Image.open(caminho)
             return ctk.CTkImage(light_image=img, dark_image=img, size=(tam, tam))
+        except Exception:
+            return None
+
+    def _carregar_logo_completo(self, largura: int):
+        try:
+            from infrastructure.filesystem import assets_dir
+            from PIL import Image
+            caminho = assets_dir() / "logo_completo.png"
+            if not caminho.exists():
+                return None
+            img = Image.open(caminho)
+            altura = round(largura * img.height / img.width)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(largura, altura))
         except Exception:
             return None
 

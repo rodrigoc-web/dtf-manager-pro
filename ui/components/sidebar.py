@@ -47,21 +47,17 @@ class Sidebar(ctk.CTkFrame):
         self._img_ativo:   dict[str, "ctk.CTkImage"] = {}
         self._ativo: str | None = None
 
-        # Logo grande, centralizada e empilhada (ícone em cima, wordmark
-        # embaixo) -- igual ao mockup de referência do usuário; a versão
-        # anterior (ícone pequeno + texto ao lado) não era fiel ao proposto.
+        # Logo = a IMAGEM de verdade (assets/logo_completo.png, recortada do
+        # arquivo que o usuário forneceu), não texto recriado com fonte de
+        # sistema — nenhuma fonte instalada reproduz a tipografia customizada
+        # do logo (o "F" cortado, o traço fino ao redor de "PRO"), então só a
+        # imagem garante ficar IDÊNTICO ao original.
         cabecalho = ctk.CTkFrame(self, fg_color="transparent")
         cabecalho.pack(fill="x", pady=(24, 18), padx=18)
 
-        icone = self._carregar_icone()
-        if icone:
-            ctk.CTkLabel(cabecalho, image=icone, text="").pack(pady=(0, 10))
-        ctk.CTkLabel(cabecalho, text="DTF MANAGER",
-                     font=ctk.CTkFont("Segoe UI", 17, "bold"),
-                     text_color=BRANCO).pack()
-        ctk.CTkLabel(cabecalho, text="PRO",
-                     font=ctk.CTkFont("Segoe UI", 11, "bold"),
-                     text_color=SIDEBAR_ATIVO).pack()
+        logo = self._carregar_logo_completo()
+        if logo:
+            ctk.CTkLabel(cabecalho, image=logo, text="").pack()
 
         for nome_secao, itens in SECOES:
             ctk.CTkLabel(self, text=nome_secao, font=ctk.CTkFont("Segoe UI", 9, "bold"),
@@ -140,15 +136,17 @@ class Sidebar(ctk.CTkFrame):
         texto = f"  {titulo}" + (f"  ({quantidade})" if quantidade > 0 else "")
         self._botoes[chave].configure(text=texto)
 
-    def _carregar_icone(self):
+    def _carregar_logo_completo(self):
         try:
             from PIL import Image
             from infrastructure.filesystem import sistema_dir
-            caminho = sistema_dir() / "assets" / "icon.png"
+            caminho = sistema_dir() / "assets" / "logo_completo.png"
             if not caminho.exists():
                 return None
             img = Image.open(caminho)
-            return ctk.CTkImage(light_image=img, dark_image=img, size=(84, 84))
+            largura_alvo = 188   # largura da sidebar (224) menos os 18px de padx dos dois lados
+            altura_alvo = round(largura_alvo * img.height / img.width)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(largura_alvo, altura_alvo))
         except Exception:
             return None
 
