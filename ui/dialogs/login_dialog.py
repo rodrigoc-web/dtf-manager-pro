@@ -53,7 +53,11 @@ RECURSOS = [
 ]
 
 LARGURA_ALVO = 1000
-ALTURA_ALVO = 680
+# 680 era o canvas exato do mockup original, mas com fontes/DPI reais o
+# conteúdo (logo + textos + pill + botão + rodapé de 2 linhas) passa disso
+# -- a 2ª linha de cada descrição no rodapé ficava cortada fora da janela.
+# 40px a mais é o suficiente pra caber tudo sem cortar nada.
+ALTURA_ALVO = 720
 DURACAO_SPLASH_MS = 1600
 
 
