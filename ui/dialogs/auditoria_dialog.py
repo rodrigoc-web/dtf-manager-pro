@@ -5,7 +5,7 @@ lado de cada linha em Modelos.
 """
 from __future__ import annotations
 import customtkinter as ctk
-from ui.theme import FUNDO, VERDE, CARD, BORDA, TEXTO, SUB, BRANCO
+from ui.theme import FUNDO, VERDE, CARD, BORDA, TEXTO, SUB, BRANCO, TEXTO_SOBRE_VERDE
 from ui import icons
 
 
@@ -28,7 +28,7 @@ class AuditoriaDialog(ctk.CTkToplevel):
         topo.pack_propagate(False)
         icons.rotulo(topo, icons.HISTORICO, f"Alterações em '{modelo.profissao}'",
                     tam_icone=13, tam_texto=12, negrito=True,
-                    cor_icone=BRANCO, cor_texto=BRANCO).pack(side="left", padx=14, pady=12)
+                    cor_icone=TEXTO_SOBRE_VERDE, cor_texto=TEXTO_SOBRE_VERDE).pack(side="left", padx=14, pady=12)
 
         self._lista = ctk.CTkScrollableFrame(
             self, fg_color=CARD, corner_radius=10,

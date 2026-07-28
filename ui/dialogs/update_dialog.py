@@ -7,7 +7,7 @@ sozinho sem perguntar, pra não interromper alguém no meio de um pedido.
 from __future__ import annotations
 import queue
 import customtkinter as ctk
-from ui.theme import FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA, TEXTO, SUB, BRANCO, VERMELHO
+from ui.theme import FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA, TEXTO, SUB, BRANCO, VERMELHO, TEXTO_SOBRE_VERDE
 from ui import icons
 
 
@@ -43,7 +43,7 @@ class UpdateDialog(ctk.CTkToplevel):
         topo.grid_propagate(False)
         icons.rotulo(topo, icons.ATUALIZAR, f"Nova versão: {self._resultado.versao_remota}",
                     tam_icone=14, tam_texto=13, negrito=True,
-                    cor_icone=BRANCO, cor_texto=BRANCO).pack(side="left", padx=16, pady=14)
+                    cor_icone=TEXTO_SOBRE_VERDE, cor_texto=TEXTO_SOBRE_VERDE).pack(side="left", padx=16, pady=14)
 
         ctk.CTkLabel(self, text="O que mudou nessa versão:",
                      font=ctk.CTkFont("Segoe UI", 10, "bold"),
@@ -62,8 +62,8 @@ class UpdateDialog(ctk.CTkToplevel):
                      border_color=BORDA, border_width=1,
                      command=self.destroy).pack(side="left")
         ctk.CTkButton(rodape, text=" Atualizar agora", height=36,
-                     image=icons.imagem(icons.ATUALIZAR, tam=13, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.ATUALIZAR, tam=13, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._iniciar_atualizacao).pack(side="right")
 
     def _fechar_se_nao_rodando(self):
@@ -82,7 +82,7 @@ class UpdateDialog(ctk.CTkToplevel):
         topo.grid(row=0, column=0, sticky="ew")
         topo.grid_propagate(False)
         icons.rotulo(topo, icons.ATUALIZAR, "Atualizando...", tam_icone=14, tam_texto=13,
-                    negrito=True, cor_icone=BRANCO, cor_texto=BRANCO).pack(side="left", padx=16, pady=14)
+                    negrito=True, cor_icone=TEXTO_SOBRE_VERDE, cor_texto=TEXTO_SOBRE_VERDE).pack(side="left", padx=16, pady=14)
 
         corpo = ctk.CTkFrame(self, fg_color="transparent")
         corpo.grid(row=1, column=0, sticky="ew", padx=20, pady=30)

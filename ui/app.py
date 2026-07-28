@@ -10,7 +10,7 @@ import customtkinter as ctk
 from ui.theme import FUNDO
 from ui.components.sidebar import Sidebar
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
 
 

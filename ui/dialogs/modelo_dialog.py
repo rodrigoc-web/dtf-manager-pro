@@ -22,7 +22,7 @@ from domain.models import Modelo, Pedido
 from domain.enums import Prioridade, TipoModelo
 from core.constants import CAMPOS_POR_TIPO
 from core.exceptions import DTFError
-from ui.theme import FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA, TEXTO, SUB, BRANCO
+from ui.theme import FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA, TEXTO, SUB, BRANCO, TEXTO_SOBRE_VERDE
 from ui import icons
 
 DADOS_EXEMPLO = {
@@ -88,7 +88,7 @@ class ModeloDialog(ctk.CTkToplevel):
         icone_tipo = icons.CAMADAS if self._tipo == TipoModelo.PROFISSAO else icons.PECA
         icons.rotulo(topo, icone_tipo, f"Cadastro de modelo ({rotulo_tipo})",
                     tam_icone=14, tam_texto=13, negrito=True,
-                    cor_icone=BRANCO, cor_texto=BRANCO).pack(side="left", padx=16, pady=14)
+                    cor_icone=TEXTO_SOBRE_VERDE, cor_texto=TEXTO_SOBRE_VERDE).pack(side="left", padx=16, pady=14)
 
         corpo = ctk.CTkFrame(self, fg_color=FUNDO, corner_radius=0)
         corpo.grid(row=1, column=0, sticky="ew", padx=16, pady=(12, 4))
@@ -165,8 +165,8 @@ class ModeloDialog(ctk.CTkToplevel):
                      border_color=BORDA, border_width=1,
                      command=self.destroy).grid(row=1, column=1, padx=8)
         ctk.CTkButton(rodape, text=" Salvar", height=36,
-                     image=icons.imagem(icons.SALVAR, tam=14, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.SALVAR, tam=14, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._salvar).grid(row=1, column=2, sticky="e")
 
     @staticmethod

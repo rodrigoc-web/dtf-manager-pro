@@ -8,7 +8,7 @@ import os
 import customtkinter as ctk
 from tkinter import messagebox
 from core.constants import APP_NOME, VERSAO, AUTOR
-from ui.theme import FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_HOVER, VERDE_CLARO
+from ui.theme import FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_HOVER, VERDE_CLARO, TEXTO_SOBRE_VERDE
 from ui import icons
 
 _DICAS = [
@@ -69,8 +69,8 @@ class AjudaScreen(ctk.CTkFrame):
         ctk.CTkLabel(suporte, text="SUPORTE", font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB, anchor="w").pack(anchor="w", padx=16, pady=(14, 6))
         ctk.CTkButton(suporte, text=" Abrir pasta de logs", height=34,
-                     image=icons.imagem(icons.CAIXA, tam=13, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.CAIXA, tam=13, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._abrir_logs).pack(anchor="w", padx=16, pady=(0, 16))
 
         atualizacoes = ctk.CTkFrame(self, fg_color=CARD, corner_radius=12,

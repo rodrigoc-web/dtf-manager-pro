@@ -5,7 +5,7 @@ aberto ao clicar numa linha da tela de Auditoria.
 """
 from __future__ import annotations
 import customtkinter as ctk
-from ui.theme import FUNDO, VERDE, CARD, BORDA, TEXTO, SUB, BRANCO
+from ui.theme import FUNDO, VERDE, CARD, BORDA, TEXTO, SUB, BRANCO, TEXTO_SOBRE_VERDE
 from ui import icons
 
 
@@ -29,7 +29,7 @@ class EventoDialog(ctk.CTkToplevel):
         topo.pack(fill="x")
         topo.pack_propagate(False)
         icons.rotulo(topo, icons.ESCUDO, rotulo, tam_icone=14, tam_texto=13,
-                    negrito=True, cor_icone=BRANCO, cor_texto=BRANCO).pack(side="left", padx=16, pady=14)
+                    negrito=True, cor_icone=TEXTO_SOBRE_VERDE, cor_texto=TEXTO_SOBRE_VERDE).pack(side="left", padx=16, pady=14)
 
         corpo = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10,
                              border_width=1, border_color=BORDA)

@@ -1,45 +1,69 @@
 """
 ui/theme.py — Paleta e fontes da interface do DTF MANAGER PRO.
-Visual definido pela logo/ícone oficiais (verde-limão) + mockup de
-referência: sidebar preta, conteúdo claro (cards brancos, fundo cinza
-bem claro). Altere aqui para mudar qualquer aspecto visual do programa.
+Fonte de verdade: Guia_Identidade_Visual_DTF_Manager_Pro.pdf (fornecido
+pelo usuário) — tema escuro em TODA a aplicação (não só a sidebar), verde-
+limão como cor de destaque, estilo premium inspirado em Adobe/Linear/
+Raycast/Arc. Altere aqui para mudar qualquer aspecto visual do programa —
+todas as telas herdam daqui.
 """
 import customtkinter as ctk
 
-# ── Acento (verde-limão da marca, calibrado p/ contraste em fundo claro) ────
-VERDE        = "#6B9E00"   # verde-limão principal — bom contraste em branco
-VERDE_HOVER  = "#597F00"   # mais escuro — hover de botões cheios
-VERDE_CLARO  = "#EEF7DA"   # tint claro — hover de botões "outline"/cards
-VERDE_GLOW   = "#93CC00"   # verde mais vibrante — usado sobre fundo preto (sidebar)
+# ── Acento (verde-limão da marca — guia: "Verde Oficial") ────────────────────
+VERDE            = "#9EF01A"   # verde principal — cor de destaque, não de fundo
+VERDE_ESCURO     = "#6CCF00"
+VERDE_HOVER      = "#B7FF3A"   # mais claro no hover (tema escuro: hover clareia)
+VERDE_PRESSIONADO = "#5DBA00"
+VERDE_GLOW       = VERDE       # mantido por compatibilidade (usos antigos "sobre preto")
 
-# ── Conteúdo (claro) ──────────────────────────────────────────────────────────
-FUNDO        = "#F5F6F7"
-CARD         = "#FFFFFF"
-BORDA        = "#E4E6E8"
-TEXTO        = "#14181A"
-SUB          = "#6B7280"
-BRANCO       = "#FFFFFF"
-PRETO        = "#000000"
+# ── Fundo/superfícies (guia: "Paleta Principal") ─────────────────────────────
+FUNDO             = "#0F1115"   # fundo principal
+FUNDO_SECUNDARIO  = "#171B22"
+CARD              = "#1E242D"
+CARD_HOVER        = "#262E39"
+BORDA             = "#2C3643"
+BRANCO            = "#FFFFFF"
+PRETO             = "#000000"
 
-# ── Sidebar (preta, como na logo) ──────────────────────────────────────────────
-SIDEBAR_BG          = "#000000"
-SIDEBAR_HOVER       = "#1A1C1A"
-SIDEBAR_TEXTO       = "#8A908C"
-SIDEBAR_TEXTO_ATIVO = "#FFFFFF"
+# Texto escrito SOBRE um preenchimento verde (botões primários, chip ativo) —
+# branco não tem contraste suficiente em cima do verde-limão vibrante; o
+# guia especifica texto escuro (a própria cor de fundo principal) nesse caso.
+TEXTO_SOBRE_VERDE = FUNDO
+
+# ── Texto (guia: "Tons de Texto") ─────────────────────────────────────────────
+TEXTO              = "#F5F7FA"   # texto principal
+SUB                = "#B7BEC9"   # texto secundário
+TEXTO_DESABILITADO = "#7A8595"
+PLACEHOLDER        = "#616D7E"
+
+# ── Sidebar (tom próprio, distinto do fundo principal — guia) ────────────────
+SIDEBAR_BG          = "#131A24"
+SIDEBAR_HOVER       = "#1C2430"
+SIDEBAR_TEXTO       = TEXTO_DESABILITADO
+SIDEBAR_TEXTO_ATIVO = TEXTO
 SIDEBAR_ATIVO       = VERDE   # bloco sólido — item ativo da sidebar
 
-# ── Superfícies escuras (diálogos "vitrine" sobre fundo preto, ex.: login) ───
-CARD_ESCURO   = "#141614"
-BORDA_ESCURA  = "#2A2D2A"
+# ── Superfícies "escuras" — mantido por compatibilidade com código existente
+# (ex.: diálogo de login); agora o app inteiro já é escuro, então isso só
+# reaproveita CARD/BORDA em vez de ter uma paleta paralela. ───────────────────
+CARD_ESCURO   = CARD
+BORDA_ESCURA  = BORDA
 
-# ── Status (cor sólida + tint claro de fundo, pra badges/chips) ──────────────
-VERMELHO     = "#DC2626"
-VERMELHO_BG  = "#FEE2E2"
-AMARELO      = "#D97706"
-AMARELO_BG   = "#FEF3E2"
-VERDE_BG     = VERDE_CLARO   # reaproveita o tint já existente (badge "produzido")
+# ── Status (cor sólida + tint escuro de fundo, pra badges/chips — guia) ──────
+# Distintos do Verde Oficial (marca/botões): "Sucesso" é um verde mais
+# esverdeado/teal, usado em badges de status (ex.: "Produzido"), enquanto
+# VERDE é reservado pra ações/destaque (botões, item ativo da sidebar).
+SUCESSO      = "#4ADE80"
+SUCESSO_BG   = "#243E39"
+VERMELHO     = "#F43F5E"   # "Erro"
+VERMELHO_BG  = "#3C2834"
+AMARELO      = "#FBBF24"   # "Atenção"
+AMARELO_BG   = "#3D3A2C"
+INFORMACAO   = "#3B82F6"
+INFORMACAO_BG = "#223149"
+VERDE_CLARO  = "#30412A"   # tint escuro do verde — badges/hover "outline" (era tint CLARO no tema antigo)
+VERDE_BG     = SUCESSO_BG  # reaproveita o tint de sucesso (era alias de VERDE_CLARO no tema antigo)
 
-# ── Categórica (gráficos — paleta validada p/ modo claro, ordem fixa) ────────
+# ── Categórica (gráficos) ─────────────────────────────────────────────────────
 # Fonte: skill dataviz/references/palette.md — 8 matizes que passam o teste de
 # daltonismo em pares adjacentes (donut/barras). "Outros" usa MUTED (cinza).
 CATEGORICA = [
@@ -53,6 +77,13 @@ CATEGORICA = [
     "#e34948",  # 8 vermelho
 ]
 MUTED = "#898781"
+
+# ── Raio de canto por tipo de componente (guia) ──────────────────────────────
+RAIO_CARD   = 20
+RAIO_BOTAO  = 14
+RAIO_INPUT  = 14
+RAIO_SIDEBAR = 24
+RAIO_MODAL  = 26
 
 
 def font(size: int, bold: bool = False) -> ctk.CTkFont:

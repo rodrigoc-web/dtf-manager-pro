@@ -34,7 +34,7 @@ from tkinter import messagebox
 
 from core import session
 from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, CARD_ESCURO, BORDA_ESCURA,
-                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER)
+                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, TEXTO_SOBRE_VERDE)
 from ui import icons
 
 RECURSOS = [
@@ -253,9 +253,9 @@ class LoginDialog(ctk.CTkToplevel):
                      anchor="w").pack(anchor="w", pady=(self._px(6), self._px(22)))
 
         ctk.CTkButton(master, text="  Entrar", height=self._px(52), corner_radius=self._px(10),
-                     image=icons.imagem(icons.ENTRAR, tam=self._px(16), cor=BRANCO), compound="left",
+                     image=icons.imagem(icons.ENTRAR, tam=self._px(16), cor=TEXTO_SOBRE_VERDE), compound="left",
                      font=self._fnt(13, True),
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._confirmar).pack(fill="x", pady=(0, self._px(26)))
 
         ctk.CTkFrame(master, fg_color=BORDA_ESCURA, height=1, corner_radius=0).pack(

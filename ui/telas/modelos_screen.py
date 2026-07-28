@@ -31,7 +31,7 @@ from tkinter import messagebox
 
 from domain.enums import TipoModelo
 from ui.theme import (FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA,
-                      TEXTO, SUB, BRANCO, VERMELHO, VERMELHO_BG)
+                      TEXTO, SUB, BRANCO, VERMELHO, VERMELHO_BG, TEXTO_SOBRE_VERDE)
 from ui.dialogs.modelo_dialog import ModeloDialog
 from ui import icons
 
@@ -75,7 +75,7 @@ class ModelosScreen(ctk.CTkFrame):
                      text_color=TEXTO)
         self._lbl_titulo.grid(row=0, column=0, sticky="w")
         self._btn_novo = ctk.CTkButton(topo, text="+  Novo modelo", height=36,
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._novo_modelo)
         self._btn_novo.grid(row=0, column=1, sticky="e")
 
@@ -109,7 +109,7 @@ class ModelosScreen(ctk.CTkFrame):
         self._img_aba_ativa:   dict[TipoModelo, "ctk.CTkImage"] = {}
         for tipo, ico, titulo in ABAS:
             self._img_aba_inativa[tipo] = icons.imagem(ico, tam=14, cor=SUB)
-            self._img_aba_ativa[tipo]   = icons.imagem(ico, tam=14, cor=BRANCO)
+            self._img_aba_ativa[tipo]   = icons.imagem(ico, tam=14, cor=TEXTO_SOBRE_VERDE)
             btn = ctk.CTkButton(
                 abas, text=f"  {titulo}", image=self._img_aba_inativa[tipo], compound="left",
                 height=34, corner_radius=8,
@@ -123,7 +123,7 @@ class ModelosScreen(ctk.CTkFrame):
     def _marcar_aba_ativa(self):
         for tipo, btn in self._botoes_aba.items():
             if tipo == self._aba_ativa:
-                btn.configure(fg_color=VERDE, text_color=BRANCO, image=self._img_aba_ativa[tipo])
+                btn.configure(fg_color=VERDE, text_color=TEXTO_SOBRE_VERDE, image=self._img_aba_ativa[tipo])
             else:
                 btn.configure(fg_color="transparent", text_color=SUB,
                              image=self._img_aba_inativa[tipo])

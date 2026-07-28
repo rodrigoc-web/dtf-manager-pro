@@ -10,7 +10,7 @@ import threading
 import customtkinter as ctk
 from tkinter import messagebox
 from core.constants import META_DIA
-from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO,
+from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, TEXTO_SOBRE_VERDE,
                       VERDE, VERDE_HOVER, VERDE_CLARO, VERMELHO, VERMELHO_BG)
 from ui import icons
 
@@ -59,8 +59,8 @@ class ConfigScreen(ctk.CTkFrame):
         self._entry_operador = ctk.CTkEntry(linha_add, height=32, placeholder_text="Nome do operador")
         self._entry_operador.pack(side="left", fill="x", expand=True, padx=(0, 8))
         ctk.CTkButton(linha_add, text=" Adicionar", height=32, width=110,
-                     image=icons.imagem(icons.MAIS, tam=12, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.MAIS, tam=12, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._adicionar_operador).pack(side="left")
 
     def _adicionar_operador(self):
@@ -91,7 +91,7 @@ class ConfigScreen(ctk.CTkFrame):
         ctk.CTkLabel(linha, text="peças por dia", font=ctk.CTkFont("Segoe UI", 10),
                      text_color=SUB).pack(side="left", padx=(0, 12))
         ctk.CTkButton(linha, text="Salvar", height=32, width=90,
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._salvar_meta).pack(side="left")
 
     def _salvar_meta(self):
@@ -139,7 +139,7 @@ class ConfigScreen(ctk.CTkFrame):
         self._entry_espacamento_colunas.grid(row=1, column=4, sticky="w", pady=(2, 0))
 
         ctk.CTkButton(card, text="Salvar", height=32, width=90,
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._salvar_grade_impressao).pack(anchor="w", padx=16, pady=(10, 14))
 
     def _salvar_grade_impressao(self):
@@ -192,12 +192,12 @@ class ConfigScreen(ctk.CTkFrame):
         self._entry_limite = ctk.CTkEntry(linha_limite, height=30, width=80)
         self._entry_limite.pack(side="left", padx=(0, 8))
         ctk.CTkButton(linha_limite, text="Salvar", height=30, width=80,
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._salvar_limite_estoque).pack(side="left")
 
         ctk.CTkButton(card, text=" Registrar reabastecimento", height=32,
-                     image=icons.imagem(icons.MAIS, tam=12, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.MAIS, tam=12, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._registrar_reabastecimento).pack(anchor="w", padx=16, pady=(0, 10))
 
         ctk.CTkLabel(card, text="Últimos movimentos", font=ctk.CTkFont("Segoe UI", 9, "bold"),
@@ -240,8 +240,8 @@ class ConfigScreen(ctk.CTkFrame):
 
         self._btn_backup = ctk.CTkButton(
             card, text=" Fazer backup agora", height=32,
-            image=icons.imagem(icons.SALVAR, tam=12, cor=BRANCO), compound="left",
-            fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+            image=icons.imagem(icons.SALVAR, tam=12, cor=TEXTO_SOBRE_VERDE), compound="left",
+            fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
             command=self._backup_agora)
         self._btn_backup.pack(anchor="w", padx=16, pady=(8, 10))
 

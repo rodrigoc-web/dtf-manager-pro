@@ -21,7 +21,7 @@ from core.constants import CAMPOS_POR_TIPO
 from core.exceptions import DTFError
 from core import session
 from ui.theme import (FUNDO, VERDE, VERDE_HOVER, VERDE_CLARO, CARD, BORDA,
-                      TEXTO, SUB, BRANCO, VERMELHO, VERMELHO_BG)
+                      TEXTO, SUB, BRANCO, VERMELHO, VERMELHO_BG, TEXTO_SOBRE_VERDE)
 from ui.components.log_area import LogArea
 from ui import icons
 
@@ -160,8 +160,8 @@ class PedidosScreen(ctk.CTkFrame):
         botoes = ctk.CTkFrame(card, fg_color="transparent")
         botoes.grid(row=3, column=0, sticky="ew", padx=12, pady=(10, 10))
         ctk.CTkButton(botoes, text=" Adicionar pedido", height=34,
-                     image=icons.imagem(icons.MAIS, tam=13, cor=BRANCO), compound="left",
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+                     image=icons.imagem(icons.MAIS, tam=13, cor=TEXTO_SOBRE_VERDE), compound="left",
+                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                      command=self._adicionar_rapido).pack(side="left")
         ctk.CTkButton(botoes, text=" Importar planilha", height=34,
                      image=icons.imagem(icons.IMPORTAR, tam=13, cor=TEXTO), compound="left",
@@ -184,7 +184,7 @@ class PedidosScreen(ctk.CTkFrame):
         self._btn_gerar = ctk.CTkButton(
             card, text="▶  Gerar Produção", height=36, width=180, corner_radius=8,
             font=ctk.CTkFont("Segoe UI", 12, "bold"),
-            fg_color=VERDE, hover_color=VERDE_HOVER, text_color=BRANCO,
+            fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
             command=self._confirmar_gerar)
         self._btn_gerar.grid(row=4, column=0, sticky="e", padx=12, pady=(0, 12))
 
@@ -197,7 +197,7 @@ class PedidosScreen(ctk.CTkFrame):
     def _marcar_categoria_ativa(self):
         for tipo, btn in self._botoes_categoria.items():
             if tipo == self._categoria:
-                btn.configure(fg_color=VERDE, text_color=BRANCO)
+                btn.configure(fg_color=VERDE, text_color=TEXTO_SOBRE_VERDE)
             else:
                 btn.configure(fg_color="transparent", text_color=SUB)
 
@@ -855,11 +855,17 @@ class PedidosScreen(ctk.CTkFrame):
                          command=lambda p=p: self._remover(p)).pack(side="left")
 
     def _atualizar_estado_btn_gerar(self, quantidade_pendentes: int):
-        """Cinza quando não há nada pra produzir, verde quando há fila."""
+        """Cinza quando não há nada pra produzir, verde quando há fila. O
+        text_color muda junto com o fundo — TEXTO_SOBRE_VERDE (escuro) só
+        tem contraste em cima do verde; sobre o cinza desabilitado precisa
+        ser um tom claro, senão o texto quase some (bug real encontrado
+        depois da conversão pro tema escuro)."""
         if quantidade_pendentes > 0:
-            self._btn_gerar.configure(fg_color=VERDE, hover_color=VERDE_HOVER, state="normal")
+            self._btn_gerar.configure(fg_color=VERDE, hover_color=VERDE_HOVER,
+                                      text_color=TEXTO_SOBRE_VERDE, state="normal")
         else:
-            self._btn_gerar.configure(fg_color=BORDA, hover_color=BORDA, state="disabled")
+            self._btn_gerar.configure(fg_color=BORDA, hover_color=BORDA,
+                                      text_color=SUB, state="disabled")
 
     def _remover(self, pedido: Pedido):
         from infrastructure.db import pedidos_repo, eventos_repo

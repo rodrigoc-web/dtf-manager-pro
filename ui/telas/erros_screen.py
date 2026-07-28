@@ -7,7 +7,8 @@ novo a não ser recriar o pedido do zero.
 from __future__ import annotations
 import customtkinter as ctk
 from tkinter import messagebox
-from ui.theme import FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_CLARO, VERMELHO, VERMELHO_BG, AMARELO_BG
+from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, VERDE, VERDE_HOVER, VERDE_CLARO,
+                      VERMELHO, VERMELHO_BG, AMARELO_BG, TEXTO_SOBRE_VERDE)
 from ui import icons
 
 
@@ -75,8 +76,8 @@ class ErrosScreen(ctk.CTkFrame):
             botoes = ctk.CTkFrame(linha, fg_color="transparent")
             botoes.grid(row=0, column=2, padx=10, pady=8, sticky="e")
             ctk.CTkButton(botoes, text=" Reprocessar", height=30, width=120,
-                         image=icons.imagem(icons.ATUALIZAR, tam=12, cor=BRANCO), compound="left",
-                         fg_color=VERDE, hover_color=VERDE_CLARO, text_color=BRANCO,
+                         image=icons.imagem(icons.ATUALIZAR, tam=12, cor=TEXTO_SOBRE_VERDE), compound="left",
+                         fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
                          command=lambda p=p: self._reprocessar(p)).pack(side="left", padx=(0, 6))
             ctk.CTkButton(botoes, text=" Descartar", height=30, width=100,
                          image=icons.imagem(icons.LIXEIRA, tam=12, cor=VERMELHO), compound="left",

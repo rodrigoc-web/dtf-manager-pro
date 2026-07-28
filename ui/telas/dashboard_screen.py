@@ -18,7 +18,7 @@ import datetime
 import tkinter as tk
 import customtkinter as ctk
 from ui.theme import (CARD, BORDA, VERDE, VERDE_CLARO, TEXTO, SUB, FUNDO, BRANCO,
-                      AMARELO, AMARELO_BG, VERMELHO, VERMELHO_BG, CATEGORICA)
+                      AMARELO, AMARELO_BG, VERMELHO, VERMELHO_BG, CATEGORICA, TEXTO_SOBRE_VERDE)
 from core.constants import META_DIA
 from ui import icons
 
@@ -157,7 +157,7 @@ class DashboardScreen(ctk.CTkFrame):
                      text_color=TEXTO).place(relx=0.5, rely=0.5, anchor="center")
         self._badge_sino = ctk.CTkLabel(
             sino, text="0", font=ctk.CTkFont("Segoe UI", 8, "bold"),
-            text_color=BRANCO, fg_color=VERDE, corner_radius=8, width=16, height=16)
+            text_color=TEXTO_SOBRE_VERDE, fg_color=VERDE, corner_radius=8, width=16, height=16)
         self._badge_sino.place(relx=1.0, rely=0.0, anchor="ne")
 
         hoje = datetime.date.today()
@@ -336,10 +336,14 @@ class DashboardScreen(ctk.CTkFrame):
             linha.pack(fill="x", padx=8, pady=3)
             linha.bind("<Button-1>", lambda e: self._navegar("auditoria"))
 
+            # Selo VERDE (marca) precisa de ícone escuro pra ter contraste —
+            # os outros (azul, vermelho, violeta, cinza) continuam com
+            # ícone branco normalmente.
+            cor_icone_selo = TEXTO_SOBRE_VERDE if cor == VERDE else BRANCO
             selo = ctk.CTkFrame(linha, fg_color=cor, corner_radius=13, width=26, height=26)
             selo.pack(side="left", padx=(0, 8))
             selo.pack_propagate(False)
-            ctk.CTkLabel(selo, text=ico, font=icons.fonte(11), text_color=BRANCO,
+            ctk.CTkLabel(selo, text=ico, font=icons.fonte(11), text_color=cor_icone_selo,
                         fg_color="transparent").place(relx=0.5, rely=0.5, anchor="center")
 
             textos = ctk.CTkFrame(linha, fg_color="transparent")
