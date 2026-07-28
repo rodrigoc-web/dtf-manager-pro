@@ -60,6 +60,8 @@ class ModeloDialog(ctk.CTkToplevel):
         self.geometry("640x700")
         self.minsize(580, 580)
         self.configure(fg_color=FUNDO)
+        from ui.components.titlebar import aplicar_padrao_janela
+        aplicar_padrao_janela(self)
         self.grab_set()
 
         self._montar()

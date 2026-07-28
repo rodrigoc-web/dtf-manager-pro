@@ -19,6 +19,8 @@ class AuditoriaDialog(ctk.CTkToplevel):
         self.geometry("480x420")
         self.minsize(420, 320)
         self.configure(fg_color=FUNDO)
+        from ui.components.titlebar import aplicar_padrao_janela
+        aplicar_padrao_janela(self)
         self.grab_set()
 
         topo = ctk.CTkFrame(self, fg_color=VERDE, corner_radius=0, height=50)

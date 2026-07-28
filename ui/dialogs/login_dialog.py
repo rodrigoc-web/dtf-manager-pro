@@ -24,6 +24,8 @@ class LoginDialog(ctk.CTkToplevel):
         self.geometry("380x260")
         self.resizable(False, False)
         self.configure(fg_color=FUNDO)
+        from ui.components.titlebar import aplicar_padrao_janela
+        aplicar_padrao_janela(self)
         self.protocol("WM_DELETE_WINDOW", self._fechar)
 
         self._montar()

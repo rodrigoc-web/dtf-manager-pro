@@ -37,13 +37,6 @@ class DTFProApp(ctk.CTk):
     def _setup(self):
         from core.constants import APP_NOME, VERSAO
         self.title(f"{APP_NOME} v{VERSAO}")
-        try:
-            from infrastructure.filesystem import sistema_dir as sd
-            ico = sd() / "dtf_manager.ico"
-            if ico.exists():
-                self.iconbitmap(str(ico))
-        except Exception:
-            pass
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         w, h = min(1200, int(sw * 0.85)), min(800, int(sh * 0.85))
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
@@ -52,9 +45,8 @@ class DTFProApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.update_idletasks()
-        from ui.components.titlebar import aplicar_cor_barra
-        aplicar_cor_barra(self.winfo_id())
+        from ui.components.titlebar import aplicar_padrao_janela
+        aplicar_padrao_janela(self)
 
     def _login(self):
         from ui.dialogs.login_dialog import LoginDialog

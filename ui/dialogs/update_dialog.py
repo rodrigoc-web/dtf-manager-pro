@@ -22,6 +22,8 @@ class UpdateDialog(ctk.CTkToplevel):
         self.geometry("440x380")
         self.minsize(400, 320)
         self.configure(fg_color=FUNDO)
+        from ui.components.titlebar import aplicar_padrao_janela
+        aplicar_padrao_janela(self)
         self.protocol("WM_DELETE_WINDOW", self._fechar_se_nao_rodando)
 
         self._rodando = False

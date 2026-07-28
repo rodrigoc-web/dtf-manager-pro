@@ -26,3 +26,20 @@ def aplicar_cor_barra(hwnd_id: int, cor_hex: str = "#000000"):
         )
     except Exception:
         pass
+
+
+def aplicar_padrao_janela(janela, cor_hex: str = "#000000"):
+    """Ícone (.ico) + cor da barra de título (DWM) numa única chamada —
+    padrão visual de TODA janela do app (principal e diálogos/Toplevel).
+    Chamar logo após criar a janela (`super().__init__()` + `title()`),
+    antes de montar o conteúdo, pra não piscar sem estilo por um instante.
+    """
+    try:
+        from infrastructure.filesystem import sistema_dir
+        ico = sistema_dir() / "dtf_manager.ico"
+        if ico.exists():
+            janela.iconbitmap(str(ico))
+    except Exception:
+        pass
+    janela.update_idletasks()
+    aplicar_cor_barra(janela.winfo_id(), cor_hex)
