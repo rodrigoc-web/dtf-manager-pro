@@ -201,6 +201,7 @@ class LoginDialog(ctk.CTkToplevel):
         esquerda.grid(row=0, column=0, sticky="nsew",
                       padx=(self._px(48), self._px(16)), pady=(self._px(32), self._px(26)))
         esquerda.grid_columnconfigure(0, weight=1)
+        self._esquerda = esquerda   # usado por _ajustar_altura_se_necessario
 
         self._montar_logo(esquerda)
         self._montar_boas_vindas(esquerda)
@@ -213,18 +214,29 @@ class LoginDialog(ctk.CTkToplevel):
         self.after(50, lambda: self._ajustar_altura_se_necessario(tentativas=4))
 
     def _ajustar_altura_se_necessario(self, tentativas: int):
-        """Rede de segurança contra conteúdo cortado embaixo -- já aconteceu
-        duas vezes (altura fixa 680px insuficiente; depois a fração de tela
-        0.5 combinada com o piso de fonte de 9pt fazendo o texto não encolher
-        na mesma proporção da janela). Em vez de caçar mais um número mágico,
-        mede a posição real do widget mais baixo depois do layout e cresce a
-        janela (só a altura, nunca a largura) se precisar -- funciona em
-        qualquer tela, com qualquer combinação de fontes/paddings.
+        """Ajusta a altura da janela pro tamanho REAL do conteúdo, pra cima
+        OU pra baixo -- não só uma rede de segurança contra corte (já
+        aconteceu duas vezes: altura fixa 680px insuficiente; depois a
+        fração de tela combinada com o piso de fonte de 9pt não encolhendo
+        junto), mas também contra o oposto, sobra de espaço morto embaixo
+        quando ALTURA_ALVO é mais generoso que o necessário. Em vez de
+        caçar mais um número mágico, mede a posição real do widget mais
+        baixo depois do layout e faz a janela abraçar exatamente esse
+        conteúdo (+ uma margem pequena) -- funciona em qualquer tela, com
+        qualquer combinação de fontes/paddings.
 
         Título com wraplength (ex.: "Histórico por operador" quebrando pra
         2 linhas) só termina de reajustar a própria altura depois de mais
         um ciclo do event loop -- por isso mede de novo (até `tentativas`
-        vezes) depois de cada correção, em vez de confiar numa única medição."""
+        vezes) depois de cada correção, em vez de confiar numa única medição.
+
+        Mede só a coluna ESQUERDA (conteúdo de tamanho fixo), nunca a
+        janela inteira -- a ilustração da direita é "elástica" (contain-fit
+        dentro da altura que a coluna dela receber), então seu próprio
+        fundo sempre acompanha a altura atual da janela. Medir a janela
+        inteira criava um loop: aumenta a janela -> ilustração cresce
+        junto -> "conteúdo mais baixo" sobe de novo -> aumenta de novo,
+        sem nunca convergir num tamanho estável."""
         if not self.winfo_exists() or tentativas <= 0:
             return
         self.update_idletasks()
@@ -235,18 +247,18 @@ class LoginDialog(ctk.CTkToplevel):
                 y1 = max(y1, _mais_baixo(filho))
             return y1
 
-        fundo_conteudo = _mais_baixo(self)
-        fundo_janela = self.winfo_rooty() + self.winfo_height()
-        falta = fundo_conteudo - fundo_janela
-        if falta > 0:
-            sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-            margem = self._px(16)
-            nova_altura = min(self._altura + falta + margem, sh - 60)
-            if nova_altura > self._altura:
-                self._altura = nova_altura
-                x = self.winfo_x()
-                y = max(10, (sh - nova_altura) // 2)
-                self.geometry(f"{self._largura}x{nova_altura}+{x}+{y}")
+        topo_janela = self.winfo_rooty()
+        fundo_conteudo = _mais_baixo(self._esquerda)
+        margem = self._px(20)
+        altura_ideal = fundo_conteudo - topo_janela + margem
+
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        altura_ideal = max(460, min(altura_ideal, sh - 60))
+        if abs(altura_ideal - self._altura) > 2:
+            self._altura = altura_ideal
+            x = self.winfo_x()
+            y = max(10, (sh - altura_ideal) // 2)
+            self.geometry(f"{self._largura}x{altura_ideal}+{x}+{y}")
         self.after(50, lambda: self._ajustar_altura_se_necessario(tentativas - 1))
 
     def _montar_logo(self, master):
