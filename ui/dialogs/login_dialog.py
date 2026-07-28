@@ -34,8 +34,17 @@ from tkinter import messagebox
 
 from core import session
 from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, SIDEBAR_HOVER, CARD_ESCURO, BORDA_ESCURA,
-                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, TEXTO_SOBRE_VERDE)
+                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, VERDE_PRESSIONADO, VERDE_ESCURO,
+                      TEXTO_SOBRE_VERDE)
 from ui import icons
+
+
+def _clarear(cor_hex: str, alpha: float) -> str:
+    """Clareia cor_hex misturando branco na proporção alpha (0-1) -- usado só
+    pra gerar a variante "hover" do gradiente do botão Entrar."""
+    r, g, b = (int(cor_hex[i:i + 2], 16) for i in (1, 3, 5))
+    r, g, b = (round(c + (255 - c) * alpha) for c in (r, g, b))
+    return f"#{r:02X}{g:02X}{b:02X}"
 
 RECURSOS = [
     (icons.ESCUDO, "Auditoria completa", "Todas as ações são\nregistradas"),
@@ -252,14 +261,85 @@ class LoginDialog(ctk.CTkToplevel):
                      font=self._fnt(9), text_color=SIDEBAR_TEXTO,
                      anchor="w").pack(anchor="w", pady=(self._px(6), self._px(22)))
 
-        ctk.CTkButton(master, text="  Entrar", height=self._px(52), corner_radius=self._px(10),
-                     image=icons.imagem(icons.ENTRAR, tam=self._px(16), cor=TEXTO_SOBRE_VERDE), compound="left",
-                     font=self._fnt(13, True),
-                     fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
-                     command=self._confirmar).pack(fill="x", pady=(0, self._px(26)))
+        self._montar_botao_entrar(master)
 
         ctk.CTkFrame(master, fg_color=BORDA_ESCURA, height=1, corner_radius=0).pack(
             fill="x", pady=(0, self._px(22)))
+
+    def _montar_botao_entrar(self, master):
+        """Botão "Entrar" com gradiente horizontal (hover→verde→pressionado→
+        escuro, os 4 tons oficiais da marca) em vez de preenchimento sólido —
+        CTkButton não tem parâmetro de gradiente, então isso é um CTkLabel
+        com uma única imagem PIL (fundo + ícone + texto já desenhados juntos)
+        como conteúdo. Um CTkFrame "transparent" sobreposto a um CTkLabel de
+        imagem NÃO fica transparente de verdade (vira um retângulo sólido
+        cobrindo o gradiente) -- por isso ícone e texto são desenhados DENTRO
+        da mesma imagem, não como widgets-filho por cima. Como o diálogo é de
+        tamanho FIXO (resizable(False, False)), dá pra gerar a imagem uma
+        única vez, logo depois do primeiro layout, sem recalcular em resize."""
+        altura = self._px(52)
+        raio = self._px(10)
+        botao = ctk.CTkLabel(master, text="", height=altura, corner_radius=0)
+        botao.pack(fill="x", pady=(0, self._px(26)))
+
+        def _aplicar_gradiente():
+            largura = botao.winfo_width()
+            if largura <= 1:
+                self.after(10, _aplicar_gradiente)
+                return
+            self._img_entrar_normal = self._imagem_botao_entrar(largura, altura, raio, hover=False)
+            self._img_entrar_hover  = self._imagem_botao_entrar(largura, altura, raio, hover=True)
+            botao.configure(image=self._img_entrar_normal)
+        self.after(1, _aplicar_gradiente)
+
+        botao.configure(cursor="hand2")
+        botao.bind("<Button-1>", lambda e: self._confirmar())
+        botao.bind("<Enter>", lambda e: botao.configure(image=self._img_entrar_hover))
+        botao.bind("<Leave>", lambda e: botao.configure(image=self._img_entrar_normal))
+
+    def _imagem_botao_entrar(self, largura: int, altura: int, raio: int, hover: bool) -> "ctk.CTkImage":
+        from PIL import Image, ImageDraw, ImageFont
+        escala = 3
+        w, h, r = largura * escala, altura * escala, raio * escala
+
+        paradas = [VERDE_HOVER, VERDE, VERDE_PRESSIONADO, VERDE_ESCURO]
+        if hover:
+            paradas = [_clarear(c, 0.12) for c in paradas]
+        cores = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in paradas]
+        n = len(cores) - 1
+        linha = Image.new("RGB", (w, 1))
+        for x in range(w):
+            pos = x / max(1, w - 1) * n
+            i = min(int(pos), n - 1)
+            t = pos - i
+            c0, c1 = cores[i], cores[i + 1]
+            linha.putpixel((x, 0), tuple(round(c0[k] + (c1[k] - c0[k]) * t) for k in range(3)))
+        gradiente = linha.resize((w, h))
+        mascara = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(mascara).rounded_rectangle([0, 0, w - 1, h - 1], radius=r, fill=255)
+        saida = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        saida.paste(gradiente, (0, 0), mascara)
+
+        draw = ImageDraw.Draw(saida)
+        tam_fonte_texto = int(self._px(13) * escala)
+        fonte_texto = ImageFont.truetype(r"C:\Windows\Fonts\segoeuib.ttf", tam_fonte_texto)
+        fonte_icone = ImageFont.truetype(icons._FONTE_PATH, int(self._px(16) * escala))
+        texto = "Entrar"
+        bbox_texto = draw.textbbox((0, 0), texto, font=fonte_texto)
+        bbox_icone = draw.textbbox((0, 0), icons.ENTRAR, font=fonte_icone)
+        largura_texto = bbox_texto[2] - bbox_texto[0]
+        largura_icone = bbox_icone[2] - bbox_icone[0]
+        espaco = self._px(8) * escala
+        largura_total = largura_icone + espaco + largura_texto
+        x_icone = (w - largura_total) // 2
+        x_texto = x_icone + largura_icone + espaco
+        draw.text((x_icone, h // 2), icons.ENTRAR, font=fonte_icone,
+                  fill=TEXTO_SOBRE_VERDE, anchor="lm")
+        draw.text((x_texto, h // 2), texto, font=fonte_texto,
+                  fill=TEXTO_SOBRE_VERDE, anchor="lm")
+
+        saida = saida.resize((largura, altura), Image.LANCZOS)
+        return ctk.CTkImage(light_image=saida, dark_image=saida, size=(largura, altura))
 
     def _montar_recursos(self, master):
         linha = ctk.CTkFrame(master, fg_color="transparent")
