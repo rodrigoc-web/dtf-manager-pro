@@ -63,14 +63,19 @@ class PedidosScreen(ctk.CTkFrame):
         self._total_fila_atual = 0
 
         self.grid_columnconfigure(0, weight=1)
-        # minsize garante a tabela visível de verdade mesmo numa janela baixa —
-        # um height= direto no CTkScrollableFrame NÃO é suficiente aqui: com
-        # sticky="nsew" + weight=1, o grid estica/encolhe o widget pro tamanho
-        # da linha calculada, ignorando o height pedido na criação (foi assim
-        # que a tabela sumiu por completo — 0px — na janela real do app).
-        self.grid_rowconfigure(3, weight=1, minsize=140)
+        self.grid_rowconfigure(0, weight=1)
 
-        icons.rotulo(self, icons.CLIPBOARD, "Pedidos", tam_icone=16, tam_texto=15,
+        # A tela INTEIRA rola (não só a lista de pendentes) — um height= fixo
+        # ou um weight+minsize num grid comum não bastava: numa janela baixa,
+        # o formulário (que cresce bastante, principalmente na aba Time)
+        # espremia a tabela de pedidos pendentes até sumir por completo
+        # (0px, sem borda nem cabeçalho visíveis). Com scroll na página
+        # inteira, nada nunca fica invisível — só rola pra ver.
+        self._scroll = ctk.CTkScrollableFrame(self, fg_color=FUNDO, corner_radius=0)
+        self._scroll.grid(row=0, column=0, sticky="nsew")
+        self._scroll.grid_columnconfigure(0, weight=1)
+
+        icons.rotulo(self._scroll, icons.CLIPBOARD, "Pedidos", tam_icone=16, tam_texto=15,
                     negrito=True, cor_icone=TEXTO, cor_texto=TEXTO).grid(
             row=0, column=0, sticky="w", padx=16, pady=(14, 8))
 
@@ -79,18 +84,16 @@ class PedidosScreen(ctk.CTkFrame):
 
         # Tabela dos pedidos adicionados (Pedido / Quantidade / Detalhes) —
         # fica ACIMA do log, é a base de dados que "Gerar Produção" processa.
-        # height= é um MÍNIMO garantido: numa janela baixa, o formulário (que
-        # cresceu bastante) podia espremer essa linha até sumir por completo
-        # (0px, sem borda nem cabeçalho visíveis) — via de regra teste sempre
-        # no tamanho de janela real do app (até 800px de altura), não numa
-        # janela grande de teste que mascara esse tipo de colapso.
-        self._lista = ctk.CTkScrollableFrame(
-            self, fg_color=CARD, corner_radius=10, height=140,
+        # É o "panorama" pra revisar antes de gerar produção — cresce com o
+        # conteúdo (não tem altura fixa nem scroll próprio); é a página
+        # inteira que rola, então nunca fica escondida.
+        self._lista = ctk.CTkFrame(
+            self._scroll, fg_color=CARD, corner_radius=10,
             border_width=1, border_color=BORDA)
-        self._lista.grid(row=3, column=0, sticky="nsew", padx=16, pady=(0, 8))
+        self._lista.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 8))
         self._lista.grid_columnconfigure(0, weight=1)
 
-        self._log = LogArea(self)
+        self._log = LogArea(self._scroll)
         self._log.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 16))
 
         self._registrar_progresso()
@@ -99,7 +102,7 @@ class PedidosScreen(ctk.CTkFrame):
     # ── Formulário ────────────────────────────────────────────────────────────
 
     def _montar_form(self):
-        card = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10,
+        card = ctk.CTkFrame(self._scroll, fg_color=CARD, corner_radius=10,
                             border_width=1, border_color=BORDA)
         card.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 10))
         card.grid_columnconfigure(0, weight=1)
@@ -492,6 +495,11 @@ class PedidosScreen(ctk.CTkFrame):
         self._entry_qtd.insert(0, "1")
         self.atualizar()
 
+        messagebox.showinfo(
+            "Pedido adicionado",
+            f"{modelo.profissao}\nTelefone: {dados['telefone']}   ·   Qtd: {quantidade}\n\n"
+            "Confira na tabela de pedidos pendentes (abaixo) antes de Gerar Produção.")
+
     def _adicionar_lote_time(self):
         """Cria um pedido por LINHA preenchida da tabela de jogadores, todos
         de uma vez, todos usando o MESMO modelo escolhido acima — evita
@@ -557,6 +565,19 @@ class PedidosScreen(ctk.CTkFrame):
             self._limpar_linha_jogador(linha)
         self.atualizar()
 
+        LIMITE_LISTAGEM = 20
+        linhas_resumo = "\n".join(
+            f"  • {p.dados['nome']} — peito {p.dados['numero_peito']} / "
+            f"costas {p.dados['numero_costas']}"
+            + (f"  ×{p.quantidade}" if p.quantidade != 1 else "")
+            for p in pedidos_prontos[:LIMITE_LISTAGEM])
+        if len(pedidos_prontos) > LIMITE_LISTAGEM:
+            linhas_resumo += f"\n  ... e mais {len(pedidos_prontos) - LIMITE_LISTAGEM}"
+        messagebox.showinfo(
+            "Pedidos adicionados",
+            f"{len(pedidos_prontos)} pedido(s) — {modelo.profissao}\n\n{linhas_resumo}\n\n"
+            "Confira na tabela de pedidos pendentes (abaixo) antes de Gerar Produção.")
+
     # ── Importação em lote ───────────────────────────────────────────────────
 
     def _importar_planilha(self):
@@ -605,7 +626,7 @@ class PedidosScreen(ctk.CTkFrame):
     # ── Progresso e execução da produção ─────────────────────────────────────
 
     def _montar_progresso(self):
-        prog = ctk.CTkFrame(self, fg_color="transparent")
+        prog = ctk.CTkFrame(self._scroll, fg_color="transparent")
         prog.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 0))
         prog.grid_columnconfigure(0, weight=1)
         self._lbl_fila = ctk.CTkLabel(prog, text="", font=ctk.CTkFont("Segoe UI", 10, "bold"),
