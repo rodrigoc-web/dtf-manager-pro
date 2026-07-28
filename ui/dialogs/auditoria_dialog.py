@@ -38,8 +38,9 @@ class AuditoriaDialog(ctk.CTkToplevel):
         self._carregar()
 
     def _carregar(self):
-        from infrastructure.db import auditoria_repo
-        entradas = auditoria_repo.listar_por_modelo(self._db, self._modelo.id)
+        from infrastructure.db import eventos_repo
+        from core.constants import ROTULOS_EVENTO
+        entradas = eventos_repo.listar(self._db, entidade_tipo="modelo", entidade_id=self._modelo.id)
         if not entradas:
             ctk.CTkLabel(self._lista, text="Nenhum registro de auditoria ainda "
                                             "(modelo cadastrado antes dessa funcionalidade existir).",
@@ -48,7 +49,8 @@ class AuditoriaDialog(ctk.CTkToplevel):
         for e in entradas:
             linha = ctk.CTkFrame(self._lista, fg_color="transparent")
             linha.pack(fill="x", padx=8, pady=5)
-            ctk.CTkLabel(linha, text=f"{e['acao']}  ·  {e['operador'] or 'Não identificado'}",
+            rotulo = ROTULOS_EVENTO.get(e["tipo"], e["tipo"])
+            ctk.CTkLabel(linha, text=f"{rotulo}  ·  {e['operador'] or 'Não identificado'}",
                          font=ctk.CTkFont("Segoe UI", 11, "bold"),
                          text_color=TEXTO, anchor="w").pack(anchor="w")
             sub = e["criado_em"] + (f"  ·  {e['detalhes']}" if e["detalhes"] else "")

@@ -76,6 +76,18 @@ CREATE TABLE IF NOT EXISTS estoque_rolo_movimentos (
     motivo     TEXT NOT NULL DEFAULT '',
     criado_em  TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS eventos (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo           TEXT NOT NULL,
+    operador       TEXT NOT NULL DEFAULT '',
+    computador     TEXT NOT NULL DEFAULT '',
+    entidade_tipo  TEXT NOT NULL DEFAULT '',
+    entidade_id    TEXT NOT NULL DEFAULT '',
+    detalhes       TEXT NOT NULL DEFAULT '',
+    versao_app     TEXT NOT NULL DEFAULT '',
+    criado_em      TEXT NOT NULL
+);
 """
 
 
@@ -161,6 +173,22 @@ def _migrar(conn: sqlite3.Connection) -> None:
             DROP TABLE pedidos;
             ALTER TABLE pedidos_novo RENAME TO pedidos;
         """)
+
+    # Backfill único de modelos_auditoria -> eventos (Central de Auditoria).
+    # `eventos` só existe a partir desta versão, então "está vazia" é sinal
+    # confiável de que ainda não rodou — depois do 1º evento real, a tabela
+    # nunca mais fica vazia, então essa checagem não repete o backfill.
+    ja_tem_eventos = conn.execute("SELECT 1 FROM eventos LIMIT 1").fetchone()
+    if not ja_tem_eventos:
+        antigos = conn.execute(
+            "SELECT modelo_id, operador, acao, detalhes, criado_em FROM modelos_auditoria "
+            "ORDER BY id").fetchall()
+        for l in antigos:
+            conn.execute(
+                "INSERT INTO eventos (tipo, operador, entidade_tipo, entidade_id, detalhes, criado_em) "
+                "VALUES (?, ?, 'modelo', ?, ?, ?)",
+                (f"MODELO_{l['acao']}", l["operador"], str(l["modelo_id"]),
+                 l["detalhes"], l["criado_em"]))
 
 
 def inicializar_banco(db_path: str) -> None:

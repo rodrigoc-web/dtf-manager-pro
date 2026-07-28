@@ -272,13 +272,15 @@ class ModelosScreen(ctk.CTkFrame):
                      on_saved=lambda: (self._cache_imagem.pop(modelo_id, None), self.atualizar()))
 
     def _remover_modelo(self, modelo):
-        from infrastructure.db import modelos_repo, auditoria_repo
+        from infrastructure.db import modelos_repo, eventos_repo
         from core import session
         if messagebox.askyesno("Remover modelo",
             f"Remover '{modelo.profissao}'?\n\n"
             "Pedidos já produzidos com este modelo continuam no histórico."):
             modelos_repo.remover_modelo(self._db, modelo.id)
-            auditoria_repo.registrar(self._db, modelo.id, session.operador_atual, "REMOVIDO")
+            eventos_repo.registrar(self._db, "MODELO_REMOVIDO", session.operador_atual,
+                                   entidade_tipo="modelo", entidade_id=modelo.id,
+                                   detalhes=modelo.profissao)
             self._cache_imagem.pop(modelo.id, None)
             self.atualizar()
 

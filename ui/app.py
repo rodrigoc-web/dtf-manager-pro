@@ -190,6 +190,9 @@ class DTFProApp(ctk.CTk):
         if chave == "historico":
             from ui.telas.historico_screen import HistoricoScreen
             return HistoricoScreen(self._conteudo, self._db)
+        if chave == "auditoria":
+            from ui.telas.auditoria_screen import AuditoriaScreen
+            return AuditoriaScreen(self._conteudo, self._db)
         if chave == "erros":
             from ui.telas.erros_screen import ErrosScreen
             return ErrosScreen(self._conteudo, self._db)

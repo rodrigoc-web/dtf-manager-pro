@@ -37,3 +37,18 @@ RESPIRO_CROP    = 50      # pixels de respiro abaixo do último pixel visível
 VERSAO          = "1.0.1"
 AUTOR           = "RodrigoCesar"
 APP_NOME        = "DTF MANAGER PRO"
+
+# ── Central de Auditoria — tipos de evento e rótulo pra UI ────────────────────
+# Único lugar com essa lista: todo `eventos_repo.registrar(tipo=...)` do
+# sistema usa uma destas chaves, e a tela de Auditoria só sabe formatar o
+# que estiver aqui (chave desconhecida cai no fallback = a própria chave).
+ROTULOS_EVENTO = {
+    "LOGIN":             "Login",
+    "MODELO_CRIADO":     "Criou modelo",
+    "MODELO_EDITADO":    "Editou modelo",
+    "MODELO_REMOVIDO":   "Removeu modelo",
+    "PEDIDO_CRIADO":     "Criou pedido",
+    "PEDIDO_REMOVIDO":   "Removeu pedido",
+    "PRODUCAO_GERADA":   "Gerou produção",
+    "BACKUP":            "Backup automático",
+}

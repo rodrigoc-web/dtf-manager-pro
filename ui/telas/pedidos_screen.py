@@ -482,10 +482,15 @@ class PedidosScreen(ctk.CTkFrame):
             marketplace=self._combo_marketplace.get().strip(),
             quantidade=quantidade, prioridade=Prioridade(self._combo_prioridade.get()))
         try:
-            pedidos_repo.inserir_pedido(self._db, pedido)
+            pedido_id = pedidos_repo.inserir_pedido(self._db, pedido)
         except DTFError as e:
             messagebox.showerror("Erro ao adicionar pedido", str(e))
             return
+
+        from infrastructure.db import eventos_repo
+        eventos_repo.registrar(self._db, "PEDIDO_CRIADO", session.operador_atual,
+                               entidade_tipo="pedido", entidade_id=pedido_id,
+                               detalhes=f"{modelo.profissao} — qtd {quantidade}")
 
         self._combo_marketplace.configure(values=self._nomes_marketplaces())
         self._modelo_selecionado = None
@@ -560,6 +565,11 @@ class PedidosScreen(ctk.CTkFrame):
             messagebox.showerror("Erro ao adicionar pedidos", str(e))
             return
 
+        from infrastructure.db import eventos_repo
+        eventos_repo.registrar(
+            self._db, "PEDIDO_CRIADO", session.operador_atual, entidade_tipo="pedido",
+            detalhes=f"{len(pedidos_prontos)} pedido(s) em lote — {modelo.profissao}")
+
         self._combo_marketplace.configure(values=self._nomes_marketplaces())
         for linha in self._linhas_time:
             self._limpar_linha_jogador(linha)
@@ -604,6 +614,10 @@ class PedidosScreen(ctk.CTkFrame):
 
         if pedidos:
             pedidos_repo.inserir_pedidos_em_lote(self._db, pedidos)
+            from infrastructure.db import eventos_repo
+            eventos_repo.registrar(self._db, "PEDIDO_CRIADO", session.operador_atual,
+                                   entidade_tipo="pedido",
+                                   detalhes=f"{len(pedidos)} pedido(s) importados de planilha")
 
         resumo = f"{len(pedidos)} pedido(s) importado(s) com sucesso."
         if erros:
@@ -848,8 +862,11 @@ class PedidosScreen(ctk.CTkFrame):
             self._btn_gerar.configure(fg_color=BORDA, hover_color=BORDA, state="disabled")
 
     def _remover(self, pedido: Pedido):
-        from infrastructure.db import pedidos_repo
+        from infrastructure.db import pedidos_repo, eventos_repo
         pedidos_repo.remover_pedido(self._db, pedido.id)
+        eventos_repo.registrar(self._db, "PEDIDO_REMOVIDO", session.operador_atual,
+                               entidade_tipo="pedido", entidade_id=pedido.id,
+                               detalhes=f"{pedido.profissao} — {pedido.resumo}")
         self.atualizar()
 
     def _mover(self, pedido: Pedido, direcao: str):

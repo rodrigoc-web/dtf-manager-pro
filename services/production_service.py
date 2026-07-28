@@ -161,6 +161,13 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
         except DTFError as e:
             log.aviso(f"Pedidos não marcados como produzidos: {e}")
 
+        from infrastructure.db import eventos_repo
+        from core import session
+        eventos_repo.registrar(
+            db, "PRODUCAO_GERADA", session.operador_atual, entidade_tipo="lote",
+            entidade_id=lote_id,
+            detalhes=f"{len(validos)} pedido(s), {len(artes_profissao) + len(artes_time)} arte(s)")
+
         # Baixa do estoque de rolo DTF — só em produção real (Modo Teste não
         # consome rolo de verdade). Comprimento impresso = altura da folha.
         try:

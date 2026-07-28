@@ -55,6 +55,14 @@ def criar_backup() -> Path:
         provisorio.unlink(missing_ok=True)
         raise
 
+    try:
+        from infrastructure.db import eventos_repo
+        from core import session
+        eventos_repo.registrar(str(db_path()), "BACKUP", session.operador_atual,
+                               detalhes=destino.name)
+    except Exception:
+        pass   # log de auditoria nunca pode impedir o backup em si de ter funcionado
+
     return destino
 
 

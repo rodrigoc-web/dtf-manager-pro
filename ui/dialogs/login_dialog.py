@@ -10,10 +10,16 @@ A tela de login segue à risca o mockup de referência do usuário
 subtítulo, campo com ícone de pessoa, botão "Entrar", 3 destaques no
 rodapé e a impressora como ilustração na coluna direita — conteúdo
 ancorado no topo (não centralizado verticalmente), exatamente como no
-mockup. A janela abre no MESMO tamanho da janela principal (mesma conta
-de ui/app.py) — só o tamanho da moldura é responsivo; o conteúdo interno
-usa os tamanhos fixos do mockup, com um piso de escala pra não encolher
-demais numa tela pequena.
+mockup.
+
+Janela com tamanho FIXO (1000x680 — o mesmo canvas em que o mockup foi
+desenhado), não o tamanho da janela principal: usar o tamanho do app
+(bem maior, proporção diferente) foi o que fez o conteúdo ficar pequeno
+e sobrando espaço morto preto ao redor — o oposto de "idêntico ao
+mockup". Só encolhe (proporcionalmente) se a tela do usuário for menor
+que 1000x680 + uma folga pequena; na grande maioria das telas reais
+(inclusive notebook comum) isso nunca dispara — abre no tamanho exato do
+mockup, sem escala nenhuma.
 
 IDENTIFICAÇÃO OBRIGATÓRIA: fechar esta janela sem escolher um operador
 (X, Alt+F4) não deixa passar batido — quem chama este dialog no 1º login
@@ -37,8 +43,8 @@ RECURSOS = [
     (icons.ALVO, "Produção rastreável", "Mais controle e eficiência\nno seu dia a dia"),
 ]
 
-LARGURA_ALVO = 1200
-ALTURA_ALVO = 800
+LARGURA_ALVO = 1000
+ALTURA_ALVO = 680
 DURACAO_SPLASH_MS = 1600
 
 
@@ -68,9 +74,13 @@ class LoginDialog(ctk.CTkToplevel):
         self.after(DURACAO_SPLASH_MS, self._montar_login)
 
     def _centralizar(self) -> tuple[int, int]:
+        # Folga pequena (não os 15% usados na janela principal) — o alvo já
+        # é um tamanho compacto de propósito; só entra em jogo em telas
+        # genuinamente pequenas, não deveria disparar em nenhum notebook comum.
+        FOLGA_PX = 60
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = max(1000, min(LARGURA_ALVO, int(sw * 0.85)))
-        h = max(650, min(ALTURA_ALVO, int(sh * 0.85)))
+        w = max(760, min(LARGURA_ALVO, sw - FOLGA_PX))
+        h = max(520, min(ALTURA_ALVO, sh - FOLGA_PX))
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
         return w, h
 
@@ -281,10 +291,11 @@ class LoginDialog(ctk.CTkToplevel):
             messagebox.showwarning("Campo obrigatório", "Digite ou escolha seu nome.", parent=self)
             return
 
-        from infrastructure.db import operadores_repo, config_repo
+        from infrastructure.db import operadores_repo, config_repo, eventos_repo
         operadores_repo.inserir_operador(self._db, nome)
         config_repo.definir(self._db, "ultimo_operador", nome)
         session.definir_operador(nome)
+        eventos_repo.registrar(self._db, "LOGIN", nome)
 
         if self._on_confirmado:
             self._on_confirmado(nome)

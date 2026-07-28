@@ -387,10 +387,12 @@ class ModeloDialog(ctk.CTkToplevel):
             messagebox.showerror("Erro ao salvar modelo", str(e))
             return
 
-        from infrastructure.db import auditoria_repo
+        from infrastructure.db import eventos_repo
         from core import session
-        auditoria_repo.registrar(self._db, modelo_novo.id, session.operador_atual,
-                                  acao_auditoria, f"PSD: {self._nome_curto(psd_local, 50)}")
+        eventos_repo.registrar(
+            self._db, f"MODELO_{acao_auditoria}", session.operador_atual,
+            entidade_tipo="modelo", entidade_id=modelo_novo.id,
+            detalhes=f"{modelo_novo.profissao} — PSD: {self._nome_curto(psd_local, 50)}")
 
         # Miniatura da lista de Modelos é gerada aqui (1x) e cacheada em disco —
         # a tela de listagem só lê esse PNG depois, nunca re-renderiza o PSD.

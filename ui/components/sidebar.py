@@ -21,8 +21,9 @@ SECOES = [
         ("modelos",   icons.CAMADAS,   "Modelos"),
     ]),
     ("RELATÓRIOS", [
-        ("historico", icons.HISTORICO, "Histórico"),
-        ("erros",     icons.AVISO,     "Erros"),
+        ("historico",  icons.HISTORICO, "Histórico"),
+        ("auditoria",  icons.ESCUDO,    "Auditoria"),
+        ("erros",      icons.AVISO,     "Erros"),
     ]),
     ("SISTEMA", [
         ("config",    icons.ENGRENAGEM, "Configurações"),
