@@ -38,6 +38,10 @@ IMPORTAR      = chr(0xE896)   # seta pra baixo com barra (importar arquivo)
 SALVAR        = chr(0xE74E)   # disquete
 AVISO         = chr(0xE7BA)   # triângulo de alerta (erros/estoque baixo)
 AJUDA         = chr(0xE9CE)   # interrogação em círculo (ajuda/sobre)
+ESCUDO        = chr(0xEA18)   # escudo (auditoria/segurança)
+CONTATO       = chr(0xE77B)   # pessoa (operador)
+ALVO          = chr(0xE81D)   # alvo/marcador (rastreável)
+ENTRAR        = chr(0xF3B1)   # porta com seta (login/entrar)
 
 
 def fonte(size: int, bold: bool = False) -> ctk.CTkFont:

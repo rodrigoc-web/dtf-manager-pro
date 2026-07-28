@@ -28,6 +28,10 @@ SIDEBAR_TEXTO       = "#8A908C"
 SIDEBAR_TEXTO_ATIVO = "#FFFFFF"
 SIDEBAR_ATIVO       = VERDE   # bloco sólido — item ativo da sidebar
 
+# ── Superfícies escuras (diálogos "vitrine" sobre fundo preto, ex.: login) ───
+CARD_ESCURO   = "#141614"
+BORDA_ESCURA  = "#2A2D2A"
+
 # ── Status (cor sólida + tint claro de fundo, pra badges/chips) ──────────────
 VERMELHO     = "#DC2626"
 VERMELHO_BG  = "#FEE2E2"
