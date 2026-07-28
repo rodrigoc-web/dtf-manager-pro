@@ -33,7 +33,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 from core import session
-from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, CARD_ESCURO, BORDA_ESCURA,
+from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, SIDEBAR_HOVER, CARD_ESCURO, BORDA_ESCURA,
                       BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, TEXTO_SOBRE_VERDE)
 from ui import icons
 
@@ -242,7 +242,7 @@ class LoginDialog(ctk.CTkToplevel):
             fg_color=CARD_ESCURO, text_color=BRANCO,
             button_color=VERDE_GLOW, button_hover_color=VERDE,
             dropdown_fg_color=CARD_ESCURO, dropdown_text_color=BRANCO,
-            dropdown_hover_color=SIDEBAR_BG,
+            dropdown_hover_color=SIDEBAR_HOVER,
             font=self._fnt(13))
         self._combo.set(ultimo if ultimo else (nomes[0] if nomes else ""))
         self._combo.pack(side="left", fill="both", expand=True, padx=(0, self._px(8)))

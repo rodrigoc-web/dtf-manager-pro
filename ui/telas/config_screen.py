@@ -11,7 +11,8 @@ import customtkinter as ctk
 from tkinter import messagebox
 from core.constants import META_DIA
 from ui.theme import (FUNDO, CARD, BORDA, TEXTO, SUB, BRANCO, TEXTO_SOBRE_VERDE,
-                      VERDE, VERDE_HOVER, VERDE_CLARO, VERMELHO, VERMELHO_BG)
+                      VERDE, VERDE_HOVER, VERDE_CLARO, VERMELHO, VERMELHO_BG,
+                      TEMA_ATUAL)
 from ui import icons
 
 
@@ -32,6 +33,7 @@ class ConfigScreen(ctk.CTkFrame):
         self._corpo.grid(row=1, column=0, sticky="nsew", padx=16, pady=(0, 16))
         self._corpo.grid_columnconfigure(0, weight=1)
 
+        self._montar_tema()
         self._montar_operadores()
         self._montar_meta_dia()
         self._montar_grade_impressao()
@@ -47,10 +49,66 @@ class ConfigScreen(ctk.CTkFrame):
                     negrito=True, cor_icone=TEXTO, cor_texto=TEXTO).pack(anchor="w", padx=16, pady=(14, 8))
         return card
 
+    # ── Tema (claro/escuro) ──────────────────────────────────────────────────
+
+    def _montar_tema(self):
+        card = self._card(icons.ENGRENAGEM, "APARÊNCIA", 0)
+        linha = ctk.CTkFrame(card, fg_color="transparent")
+        linha.pack(fill="x", padx=16, pady=(0, 14))
+        ctk.CTkLabel(linha, text="Tema", font=ctk.CTkFont("Segoe UI", 10),
+                     text_color=SUB).pack(side="left", padx=(0, 12))
+
+        # Mesmo padrão de par de botões (não CTkSegmentedButton) do toggle
+        # Profissão/Time em pedidos_screen.py: o segmented button do
+        # CustomTkinter só aceita UM text_color pra todos os segmentos, então
+        # o segmento selecionado (fundo verde) herdaria o texto claro do tema
+        # escuro e ficaria ilegível -- exatamente o bug de contraste já
+        # corrigido em botões verdes noutras telas.
+        caixa = ctk.CTkFrame(linha, fg_color=FUNDO, corner_radius=8,
+                              border_width=1, border_color=BORDA, height=38)
+        caixa.pack(side="left")
+        caixa.pack_propagate(False)
+        self._botoes_tema: dict[str, ctk.CTkButton] = {}
+        for valor, texto in (("light", "Claro"), ("dark", "Escuro")):
+            btn = ctk.CTkButton(
+                caixa, text=texto, height=28, width=80, corner_radius=6,
+                font=ctk.CTkFont("Segoe UI", 10, "bold"),
+                fg_color="transparent", text_color=SUB, hover_color=VERDE_CLARO,
+                command=lambda v=valor: self._trocar_tema(v))
+            btn.pack(side="left", padx=4, pady=4)
+            self._botoes_tema[valor] = btn
+        self._marcar_tema_ativo()
+
+        ctk.CTkLabel(linha, text="Aplicado após reiniciar o programa.",
+                     font=ctk.CTkFont("Segoe UI", 9), text_color=SUB).pack(side="left", padx=(12, 0))
+
+    def _marcar_tema_ativo(self):
+        for valor, btn in self._botoes_tema.items():
+            if valor == TEMA_ATUAL:
+                btn.configure(fg_color=VERDE, text_color=TEXTO_SOBRE_VERDE)
+            else:
+                btn.configure(fg_color="transparent", text_color=SUB)
+
+    def _trocar_tema(self, novo: str):
+        if novo == TEMA_ATUAL:
+            return
+        from infrastructure.db import config_repo
+        config_repo.definir(self._db, "tema", novo)
+        reiniciar = messagebox.askyesno(
+            "Trocar tema",
+            f"Tema {'Escuro' if novo == 'dark' else 'Claro'} salvo. "
+            "É preciso reiniciar o programa pra aplicar. Reiniciar agora?")
+        if reiniciar:
+            import sys, subprocess
+            subprocess.Popen([sys.executable] + sys.argv)
+            self.after(50, lambda: __import__("os")._exit(0))
+        else:
+            self._marcar_tema_ativo()
+
     # ── Operadores ───────────────────────────────────────────────────────────
 
     def _montar_operadores(self):
-        card = self._card(icons.ESTRELA, "OPERADORES", 0)
+        card = self._card(icons.ESTRELA, "OPERADORES", 1)
         self._lista_operadores = ctk.CTkFrame(card, fg_color="transparent")
         self._lista_operadores.pack(fill="x", padx=16)
 
@@ -83,7 +141,7 @@ class ConfigScreen(ctk.CTkFrame):
     # ── Meta diária ──────────────────────────────────────────────────────────
 
     def _montar_meta_dia(self):
-        card = self._card(icons.BANDEIRA, "META DIÁRIA DE PRODUÇÃO", 1)
+        card = self._card(icons.BANDEIRA, "META DIÁRIA DE PRODUÇÃO", 2)
         linha = ctk.CTkFrame(card, fg_color="transparent")
         linha.pack(fill="x", padx=16, pady=(0, 14))
         self._entry_meta = ctk.CTkEntry(linha, height=32, width=100)
@@ -107,7 +165,7 @@ class ConfigScreen(ctk.CTkFrame):
     # ── Grade de impressão (colunas, tamanho por coluna, largura do rolo) ───
 
     def _montar_grade_impressao(self):
-        card = self._card(icons.CAMADAS, "GRADE DE IMPRESSÃO", 2)
+        card = self._card(icons.CAMADAS, "GRADE DE IMPRESSÃO", 3)
         ctk.CTkLabel(card, text="Toda arte (Profissão e Time) é redimensionada "
                                  "proporcionalmente pra caber nesse tamanho de coluna.",
                      font=ctk.CTkFont("Segoe UI", 9), text_color=SUB,
@@ -180,7 +238,7 @@ class ConfigScreen(ctk.CTkFrame):
     # ── Estoque de rolo DTF ──────────────────────────────────────────────────
 
     def _montar_estoque(self):
-        card = self._card(icons.CAIXA, "ESTOQUE DE ROLO DTF", 3)
+        card = self._card(icons.CAIXA, "ESTOQUE DE ROLO DTF", 4)
         self._lbl_estoque_atual = ctk.CTkLabel(
             card, text="", font=ctk.CTkFont("Segoe UI", 20, "bold"), text_color=TEXTO, anchor="w")
         self._lbl_estoque_atual.pack(anchor="w", padx=16)
@@ -233,7 +291,7 @@ class ConfigScreen(ctk.CTkFrame):
     # ── Backup ───────────────────────────────────────────────────────────────
 
     def _montar_backup(self):
-        card = self._card(icons.SALVAR, "BACKUP", 4)
+        card = self._card(icons.SALVAR, "BACKUP", 5)
         self._lbl_ultimo_backup = ctk.CTkLabel(
             card, text="", font=ctk.CTkFont("Segoe UI", 10), text_color=SUB, anchor="w")
         self._lbl_ultimo_backup.pack(anchor="w", padx=16)

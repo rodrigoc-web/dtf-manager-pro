@@ -7,10 +7,10 @@ incorporado ao Histórico.
 """
 from __future__ import annotations
 import customtkinter as ctk
-from ui.theme import FUNDO
+from ui.theme import FUNDO, ESCURO
 from ui.components.sidebar import Sidebar
 
-ctk.set_appearance_mode("dark")
+ctk.set_appearance_mode("dark" if ESCURO else "light")
 ctk.set_default_color_theme("green")
 
 
