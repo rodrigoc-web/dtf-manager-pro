@@ -63,7 +63,7 @@ ALTURA_ALVO = 850
 # monitor -- ficava enorme numa tela de notebook comum (ex.: 1366×768,
 # ocupava quase a tela toda). Agora o tamanho é uma fração da tela do
 # usuário, preservando a mesma proporção do design (720/1000).
-FRACAO_LARGURA_TELA = 0.8
+FRACAO_LARGURA_TELA = 0.4   # simples/pequena-média (sem ilustração de fundo)
 DURACAO_SPLASH_MS = 1600
 
 
@@ -84,7 +84,16 @@ class LoginDialog(ctk.CTkToplevel):
         # deveria forçar o conteúdo de volta a um tamanho quase original --
         # só existe pra evitar texto ilegível em telas realmente minúsculas.
         self._escala_ui = max(self._escala, 0.6)
-        self.resizable(False, False)
+        # Habilita maximizar/redimensionar (pedido do usuário) -- o Windows
+        # só libera o botão de maximizar no title bar quando resizable=True
+        # nos dois eixos, não tem como ligar só o botão sem também liberar
+        # arrastar a borda. NOTA: o conteúdo (fontes, ícones, paddings) usa
+        # tamanhos fixos em px calculados uma única vez em _centralizar/
+        # _escala -- maximizar/redimensionar NÃO recalcula esses tamanhos,
+        # só estica a grade (colunas ficam mais largas, mais espaço vazio
+        # em volta do conteúdo). Não é um layout responsivo de verdade;
+        # isso exigiria reconstruir os widgets a cada resize.
+        self.resizable(True, True)
         self.configure(fg_color=SIDEBAR_BG)
         from ui.components.titlebar import aplicar_padrao_janela
         aplicar_padrao_janela(self)
@@ -182,33 +191,23 @@ class LoginDialog(ctk.CTkToplevel):
         if not self.winfo_exists():
             return   # fechado durante o splash — nada a fazer
         raiz = self._limpar_conteudo()
-        # Era 3:2 (esquerda bem mais larga) -- a ilustração ficava espremida
-        # numa coluna estreita e, sendo uma imagem "paisagem" (mais larga que
-        # alta), a LARGURA virava o fator limitante do contain-fit e ela
-        # saía pequena, sobrando espaço vazio em cima/embaixo. Metade/metade
-        # bate com a proporção do mockup de referência.
-        # `uniform` força as duas colunas a terem EXATAMENTE a mesma largura
-        # -- só `weight` igual não bastava, porque grid só reparte espaço
-        # SOBRANDO depois de cada coluna já receber o mínimo que o próprio
-        # conteúdo pede; como o conteúdo da esquerda (rodapé de 3 blocos)
-        # sempre pedia mais que a metade, a direita nunca sobrava o
-        # suficiente pra ilustração ficar do tamanho do mockup.
-        raiz.grid_columnconfigure(0, weight=13, uniform="colunas_login")
-        raiz.grid_columnconfigure(1, weight=10, uniform="colunas_login")
+        # Versão simplificada TEMPORÁRIA (pedido do usuário) -- sem rodapé
+        # de recursos e sem ilustração de fundo, só uma coluna, até ele
+        # montar o design de verdade no Photoshop. _montar_recursos e
+        # _montar_ilustracao continuam definidos (não apagados) pra
+        # religar rápido quando o PSD chegar.
+        raiz.grid_columnconfigure(0, weight=1)
         raiz.grid_rowconfigure(0, weight=1)
 
         esquerda = ctk.CTkFrame(raiz, fg_color="transparent")
         esquerda.grid(row=0, column=0, sticky="nsew",
-                      padx=(self._px(48), self._px(16)), pady=(self._px(32), self._px(26)))
+                      padx=(self._px(48), self._px(48)), pady=(self._px(32), self._px(26)))
         esquerda.grid_columnconfigure(0, weight=1)
         self._esquerda = esquerda   # usado por _ajustar_altura_se_necessario
 
         self._montar_logo(esquerda)
         self._montar_boas_vindas(esquerda)
         self._montar_form(esquerda)
-        self._montar_recursos(esquerda)
-
-        self._montar_ilustracao(raiz)
 
         self.after(80, lambda: self._combo.focus_set() if hasattr(self, "_combo") else None)
         self.after(50, lambda: self._ajustar_altura_se_necessario(tentativas=4))
@@ -469,10 +468,16 @@ class LoginDialog(ctk.CTkToplevel):
     def _montar_recursos(self, master):
         linha = ctk.CTkFrame(master, fg_color="transparent")
         linha.pack(fill="x")
+        n = len(RECURSOS)
         for col, (arquivo_icone, titulo, desc) in enumerate(RECURSOS):
-            linha.grid_columnconfigure(col, weight=1)
+            # Colunas pares = conteúdo, ímpares = linha divisora fina entre
+            # os blocos -- bate com a referência (linha vertical separando
+            # "Auditoria completa" / "Histórico por operador" / "Produção
+            # rastreável").
+            col_grid = col * 2
+            linha.grid_columnconfigure(col_grid, weight=1)
             bloco = ctk.CTkFrame(linha, fg_color="transparent")
-            bloco.grid(row=0, column=col, sticky="nw", padx=(0 if col == 0 else self._px(14), 0))
+            bloco.grid(row=0, column=col_grid, sticky="nw", padx=(0, self._px(14)))
             # Ícone ao lado do texto (não empilhado em cima) -- bate com o
             # mockup de referência: ícone à esquerda, título+descrição
             # empilhados à direita dele, os dois verticalmente centralizados
@@ -487,6 +492,9 @@ class LoginDialog(ctk.CTkToplevel):
                          wraplength=self._px(95)).pack(anchor="w")
             ctk.CTkLabel(textos, text=desc, font=self._fnt(9),
                          text_color=SIDEBAR_TEXTO, anchor="w", justify="left").pack(anchor="w", pady=(self._px(2), 0))
+            if col < n - 1:
+                divisor = ctk.CTkFrame(linha, fg_color=BORDA_ESCURA, width=1)
+                divisor.grid(row=0, column=col_grid + 1, sticky="ns", padx=(0, self._px(14)))
 
     def _carregar_icone_recurso(self, nome_arquivo: str, tam: int):
         try:
@@ -523,16 +531,19 @@ class LoginDialog(ctk.CTkToplevel):
                 if not caminho.exists():
                     return
                 img = Image.open(caminho)
-                margem = self._px(16)
-                caixa_w = max(1, largura_col - margem * 2)
-                caixa_h = max(1, altura_col - margem * 2)
+                # Sangra quase até a borda (referência do usuário: a
+                # ilustração vai até bem perto do limite do painel, não
+                # centralizada com respiro grande em volta).
+                margem_v = self._px(8)
+                caixa_w = max(1, largura_col - self._px(4))
+                caixa_h = max(1, altura_col - margem_v * 2)
                 escala = min(caixa_w / img.width, caixa_h / img.height)
                 largura = round(img.width * escala)
                 altura = round(img.height * escala)
                 self._img_ilustracao = ctk.CTkImage(light_image=img, dark_image=img,
                                                     size=(largura, altura))
                 ctk.CTkLabel(direita, image=self._img_ilustracao, text="").place(
-                    relx=0.5, rely=0.5, anchor="center")
+                    relx=1.0, rely=0.5, anchor="e", x=-self._px(2))
             except Exception:
                 pass
         self.after(1, _carregar)
