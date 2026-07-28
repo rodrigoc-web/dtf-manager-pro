@@ -1,32 +1,30 @@
 """
 scripts/gerar_login_bg.py — Gera assets/login_bg.png: o FUNDO (só o fundo)
-da tela de login, em 16:9 (1600x900). Todo o resto (logo, textos, campo,
-botão, rodapé) é desenhado pelo próprio CustomTkinter em cima — só a
-imagem de fundo é arte estática, pro texto continuar nítido em qualquer
-resolução (mesma abordagem de softwares desktop profissionais).
+da tela de login/splash. Canvas de referência 1200x800 (mesmo teto de
+tamanho da janela principal, ver ui/app.py — a janela de login usa
+exatamente a mesma conta, pra abrir do mesmo tamanho que o app real, sem
+salto visual na transição). Todo o resto (logo, textos, campo, botão,
+rodapé) é desenhado pelo CustomTkinter em cima — só o fundo é arte
+estática, pro texto continuar nítido em qualquer resolução.
 
 Conteúdo do fundo:
-  - gradiente escuro suave (quase preto, com leve variação)
-  - brilho verde bem sutil atrás de onde a impressora fica
-  - marca d'água da impressora (extraída do logo novo): 57% da largura
-    do canvas, 70% da altura útil, opacidade ~10%, alinhada à direita e
-    parcialmente cortada pela borda (efeito mais moderno)
-
-Rodar de novo sempre que o logo.png mudar: python scripts/gerar_login_bg.py
+  - gradiente quase-preto (#080808 no topo -> #121212 no centro -> #080808
+    embaixo), bem discreto
+  - impressora como "elemento de iluminação": grande (ocupa quase toda a
+    direita), bem desfocada e a ~8% de opacidade — mais textura/luz de
+    fundo do que um ícone reconhecível de cara
 """
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageFilter
 import numpy as np
 
 LOGO_ORIGEM = r"C:\DTF MANAGER PRO\logo.png"
 SAIDA = r"C:\DTF MANAGER PRO\dev\assets\login_bg.png"
 
-W, H = 1600, 900
-TOPO_PCT, RODAPE_PCT = 0.06, 0.10   # faixas reservadas (fora da "altura útil")
+W, H = 1200, 800
+TOPO_PCT, RODAPE_PCT = 0.0, 0.0   # marca d'água pode ocupar a altura toda agora
 
 
 def _extrair_impressora(alpha_max: int) -> Image.Image:
-    """Mesmo recorte usado no ícone/ilustração do popup antigo, mas aqui
-    com o alpha já limitado ao teto pedido (opacidade final da marca d'água)."""
     im = Image.open(LOGO_ORIGEM).convert("RGB")
     x0, y0, x1, y1 = 493, 213, 1051, 589
     pad_lr, pad_top, pad_bottom = 60, 60, 20
@@ -43,50 +41,32 @@ def _extrair_impressora(alpha_max: int) -> Image.Image:
 
 
 def gerar():
-    # 1) gradiente de base — quase preto, variação bem leve (evita "banding"
-    # perceptível numa área tão escura: gera em float e faz dither leve)
+    # 1) gradiente #080808 -> #121212 -> #080808 (vertical, bem sutil)
+    topo = np.array([0x08, 0x08, 0x08], dtype=float)
+    centro = np.array([0x12, 0x12, 0x12], dtype=float)
     fundo = np.zeros((H, W, 3), dtype=float)
     for y in range(H):
         t = y / (H - 1)
-        # centro um pouco mais claro que as bordas (vinheta suave)
-        base = 4 + 3 * (1 - abs(t - 0.5) * 2)
-        fundo[y, :, 0] = base * 0.9
-        fundo[y, :, 1] = base
-        fundo[y, :, 2] = base * 0.85
-    ruido = (np.random.default_rng(7).random((H, W, 1)) - 0.5) * 1.5
+        mistura = 1 - abs(t - 0.5) * 2   # 0 nas bordas, 1 no centro
+        fundo[y, :, :] = topo + (centro - topo) * mistura
+    ruido = (np.random.default_rng(7).random((H, W, 1)) - 0.5) * 1.2
     fundo = np.clip(fundo + ruido, 0, 255)
-
-    # 2) brilho verde sutil atrás da impressora (lado direito, altura útil)
-    cx, cy = int(W * 0.78), int(H * (TOPO_PCT + (1 - TOPO_PCT - RODAPE_PCT) / 2))
-    yy, xx = np.mgrid[0:H, 0:W]
-    raio = np.sqrt((xx - cx) ** 2 + ((yy - cy) * 1.4) ** 2)
-    raio_max = W * 0.42
-    intensidade = np.clip(1 - raio / raio_max, 0, 1) ** 2
-    fundo[:, :, 0] += intensidade * 4
-    fundo[:, :, 1] += intensidade * 14
-    fundo[:, :, 2] += intensidade * 2
-    fundo = np.clip(fundo, 0, 255)
-
     base_img = Image.fromarray(fundo.astype("uint8"), "RGB").convert("RGBA")
 
-    # 3) marca d'água da impressora — 57% da largura do canvas, 70% da
-    # altura útil, opacidade ~10% (alpha 255*0.10 ≈ 26), alinhada à
-    # direita e parcialmente cortada pela borda direita.
-    alpha_alvo = int(255 * 0.10)
+    # 2) impressora como "luz de fundo" — grande, bem desfocada, ~8% opacidade,
+    # ocupando quase toda a metade direita, cortada pela borda.
+    alpha_alvo = int(255 * 0.08)
     impressora = _extrair_impressora(alpha_alvo)
-    alt_util = int(H * (1 - TOPO_PCT - RODAPE_PCT))
-    alvo_w = int(W * 0.57)
-    alvo_h = int(alt_util * 0.70)
+    alvo_w = int(W * 0.62)
+    alvo_h = int(H * 0.92)
     escala = min(alvo_w / impressora.width, alvo_h / impressora.height)
     novo_tam = (int(impressora.width * escala), int(impressora.height * escala))
     impressora = impressora.resize(novo_tam, Image.LANCZOS)
+    impressora = impressora.filter(ImageFilter.GaussianBlur(3.5))
 
-    # leve desfoque só na marca d'água (reforça a sensação de "atrás de vidro")
-    impressora = impressora.filter(ImageFilter.GaussianBlur(0.6))
-
-    corte_borda = int(novo_tam[0] * 0.12)   # ~12% cortado pela borda direita
+    corte_borda = int(novo_tam[0] * 0.16)
     pos_x = W - novo_tam[0] + corte_borda
-    pos_y = int(TOPO_PCT * H + (alt_util - novo_tam[1]) / 2)
+    pos_y = (H - novo_tam[1]) // 2
 
     base_img.alpha_composite(impressora, (pos_x, pos_y))
 
