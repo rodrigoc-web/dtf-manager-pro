@@ -50,8 +50,17 @@ class DTFProApp(ctk.CTk):
 
     def _login(self):
         from ui.dialogs.login_dialog import LoginDialog
+        from core import session
         dialog = LoginDialog(self, self._db)
         self.wait_window(dialog)
+
+        # Identificação é obrigatória nesse 1º login — fechar a janela sem
+        # escolher um operador (X, Alt+F4) não deixa passar batido, encerra
+        # o programa inteiro em vez de abrir sem saber quem está usando.
+        if not session.operador_atual:
+            self.destroy()
+            import sys
+            sys.exit(0)
 
     def trocar_operador(self):
         from ui.dialogs.login_dialog import LoginDialog
