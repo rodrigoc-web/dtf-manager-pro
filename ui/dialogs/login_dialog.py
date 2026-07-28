@@ -205,8 +205,26 @@ class LoginDialog(ctk.CTkToplevel):
         esquerda.grid_columnconfigure(0, weight=1)
         self._esquerda = esquerda   # usado por _ajustar_altura_se_necessario
 
-        self._montar_logo(esquerda)
-        self._montar_boas_vindas(esquerda)
+        # Cabeçalho: boas-vindas à esquerda, logo à direita, lado a lado --
+        # não mais logo empilhada em cima do texto (pedido do usuário,
+        # visto ao redimensionar a janela).
+        topo = ctk.CTkFrame(esquerda, fg_color="transparent")
+        topo.pack(fill="x", pady=(0, self._px(26)))
+        topo.grid_columnconfigure(0, weight=1)
+
+        bloco_boas_vindas = ctk.CTkFrame(topo, fg_color="transparent")
+        bloco_boas_vindas.grid(row=0, column=0, sticky="w")
+        self._montar_boas_vindas(bloco_boas_vindas)
+
+        # _montar_logo empacota (.pack) dentro do master que recebe -- não
+        # dá pra chamar direto com `topo` (já tem um filho gerenciado por
+        # .grid, misturar pack/grid no mesmo container derruba com TclError).
+        # Por isso um frame dedicado só pro logo, esse sim posicionado via
+        # grid ao lado do bloco de boas-vindas.
+        bloco_logo = ctk.CTkFrame(topo, fg_color="transparent")
+        bloco_logo.grid(row=0, column=1, sticky="e", padx=(self._px(20), 0))
+        self._montar_logo(bloco_logo)
+
         self._montar_form(esquerda)
 
         self.after(80, lambda: self._combo.focus_set() if hasattr(self, "_combo") else None)
@@ -265,10 +283,9 @@ class LoginDialog(ctk.CTkToplevel):
         # recriado com fonte de sistema — nenhuma fonte instalada reproduz a
         # tipografia customizada do logo original, então só a imagem garante
         # ficar idêntico ao arquivo que o usuário forneceu.
-        logo = self._carregar_logo_completo(self._px(280))
+        logo = self._carregar_logo_completo(self._px(200))
         if logo:
-            ctk.CTkLabel(master, image=logo, text="").pack(
-                anchor="w", pady=(0, self._px(34)))
+            ctk.CTkLabel(master, image=logo, text="").pack(anchor="e")
 
     def _carregar_icone(self, tam: int):
         try:
@@ -305,7 +322,7 @@ class LoginDialog(ctk.CTkToplevel):
                      text="Informe seu nome para iniciar o sistema.\n"
                           "Todas as ações serão registradas e vinculadas a este operador.",
                      font=self._fnt(11), justify="left",
-                     text_color=SIDEBAR_TEXTO, anchor="w").pack(anchor="w", pady=(0, self._px(26)))
+                     text_color=SIDEBAR_TEXTO, anchor="w").pack(anchor="w")
 
     def _montar_form(self, master):
         ctk.CTkLabel(master, text="NOME DO OPERADOR",
