@@ -1,12 +1,13 @@
 """
 ui/theme.py — Paleta e fontes da interface do DTF MANAGER PRO.
-Fonte de verdade: DTF_Manager_Pro_Design_System_v2_Light_Dark.pdf — CORRIGE
-a diretriz anterior (Adobe Creative Cloud escuro): o tema oficial agora é
-Light Premium (Linear/Stripe/Vercel/Notion Light) com SIDEBAR ESCURA FIXA
-nos dois temas — só a área de conteúdo troca entre claro e escuro. O verde
-de destaque também muda de tom por tema (lima vibrante no escuro, esmeralda
-no claro), então o texto sobre botão verde muda de cor junto (escuro sobre
-o lima, branco sobre o esmeralda).
+Fonte de verdade: DTF_Manager_Pro_Design_System_v2_Light_Dark.pdf — o tema
+oficial é Light Premium (Linear/Stripe/Vercel/Notion Light) com SIDEBAR
+ESCURA FIXA nos dois temas — só a área de conteúdo troca entre claro e
+escuro. O verde de marca, porém, é fixo (correção do usuário sobre o v2:
+usar um esmeralda diferente no claro quebrava a identidade visual — o
+logo é sempre lima) — os 4 tons oficiais (#9EF01A/#B7FF3A/#78D900/#5DBA00)
+valem nos dois temas, e o texto sobre ele é sempre escuro (o lima é
+vibrante demais pro branco ter contraste, em claro ou escuro).
 
 A escolha do usuário (claro/escuro) fica salva em `configuracoes` (chave
 "tema") e é lida uma única vez, na importação deste módulo — trocar de
@@ -53,8 +54,8 @@ PRETO  = "#000000"
 SIDEBAR_BG    = "#131A24" if ESCURO else "#12161F"
 SIDEBAR_HOVER = _blend(BRANCO, SIDEBAR_BG, 0.08)
 SIDEBAR_TEXTO = "#7A8595"          # sempre um cinza claro (fundo sempre escuro)
-SIDEBAR_TEXTO_ATIVO = None          # definido abaixo, depois de TEXTO_SOBRE_VERDE
-SIDEBAR_ATIVO = None                # = VERDE, definido abaixo
+# SIDEBAR_TEXTO_ATIVO / SIDEBAR_ATIVO são definidos mais abaixo, depois de
+# TEXTO_SOBRE_VERDE e VERDE existirem.
 
 # Superfícies "escuras" fixas (não seguem o tema) — usadas só pelo diálogo
 # de login/splash, que continua um painel de marca escuro independente do
@@ -63,27 +64,27 @@ SIDEBAR_ATIVO = None                # = VERDE, definido abaixo
 CARD_ESCURO  = "#1E242D"
 BORDA_ESCURA = "#2C3643"
 
-# ── Acento e status — o guia agora diferencia por tema: lima vibrante no
-# escuro (Adobe-like), esmeralda mais sóbrio no claro (Linear/Stripe-like).
-if ESCURO:
-    VERDE             = "#9EF01A"
-    VERDE_HOVER       = "#B7FF3A"
-    VERDE_PRESSIONADO = "#6CCF00"
-    SUCESSO           = "#4ADE80"
-    VERMELHO          = "#F43F5E"
-    # o lima é claro demais pro branco ter contraste -- precisa de texto escuro
-    TEXTO_SOBRE_VERDE = "#111827"
-else:
-    VERDE             = "#22C55E"
-    VERDE_HOVER       = "#34D399"
-    VERDE_PRESSIONADO = "#16A34A"
-    SUCESSO           = "#22C55E"
-    VERMELHO          = "#EF4444"
-    # esmeralda tem saturação/luminância padrão de botão -- branco é o normal
-    TEXTO_SOBRE_VERDE = BRANCO
+# ── Acento de marca — FIXO nos dois temas (o logo é sempre lima; um verde
+# diferente por tema quebraria o reconhecimento imediato da marca ao trocar
+# de tema). Os 4 tons oficiais bastam pro sistema inteiro. ───────────────────
+VERDE             = "#9EF01A"
+VERDE_HOVER       = "#B7FF3A"
+VERDE_PRESSIONADO = "#78D900"
+VERDE_ESCURO      = "#5DBA00"
+VERDE_GLOW        = VERDE   # mantido por compatibilidade
 
-VERDE_ESCURO = VERDE_PRESSIONADO   # mantido por compatibilidade
-VERDE_GLOW   = VERDE               # mantido por compatibilidade
+# Texto escrito SOBRE um preenchimento verde (botões primários, chip ativo)
+# -- sempre escuro: o lima é vibrante demais pro branco ter contraste, em
+# claro ou escuro.
+TEXTO_SOBRE_VERDE = "#111827"
+
+# Status -- distintos do verde de marca (guia ainda diferencia por tema).
+if ESCURO:
+    SUCESSO  = "#4ADE80"
+    VERMELHO = "#F43F5E"
+else:
+    SUCESSO  = "#22C55E"
+    VERMELHO = "#EF4444"
 AMARELO      = "#FBBF24"           # "Atenção" -- guia não especifica por tema
 INFORMACAO   = "#3B82F6"           # igual nos dois temas (guia)
 

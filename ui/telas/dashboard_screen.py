@@ -500,7 +500,7 @@ class DashboardScreen(ctk.CTkFrame):
             ctk.CTkLabel(linha, text=nome, font=ctk.CTkFont("Segoe UI", 10),
                          text_color=TEXTO, anchor="w").pack(side="left")
             ctk.CTkLabel(linha, text=str(qtd), font=ctk.CTkFont("Segoe UI", 10, "bold"),
-                         text_color=VERDE).pack(side="right")
+                         text_color=TEXTO).pack(side="right")
 
     def _desenhar_circulo(self, pct: float):
         # Coordenadas calculadas a partir do tamanho REAL do canvas — nunca
