@@ -34,6 +34,6 @@ META_DIA        = 300     # meta de artes por dia (dashboard)
 RESPIRO_CROP    = 50      # pixels de respiro abaixo do último pixel visível
 
 # ── Sistema ───────────────────────────────────────────────────────────────────
-VERSAO          = "1.0.0"
+VERSAO          = "1.0.1"
 AUTOR           = "RodrigoCesar"
 APP_NOME        = "DTF MANAGER PRO"

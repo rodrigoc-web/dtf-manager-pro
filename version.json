@@ -1,5 +1,5 @@
 {
-  "versao": "1.0.0",
-  "data_lancamento": "2026-07-22",
-  "notas": "Versao 1.0.0 - Primeira versao do DTF MANAGER PRO. Artes de profissoes personalizadas por telefone, sem dependencia de planilha (dados 100% locais em SQLite)."
+  "versao": "1.0.1",
+  "data_lancamento": "2026-07-27",
+  "notas": "Versao 1.0.1 - Pedidos de Time: Selecao e Modelo lado a lado, tabela de jogadores volta a usar um modelo compartilhado por lote (nome / numero frente / numero costas em massa). Novo item \"+ Adicionar novo...\" no final das listas suspensas de Selecao, Modelo, Profissao e Marketplace, levando direto pro cadastro em Modelos."
 }

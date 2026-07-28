@@ -37,7 +37,8 @@ PREVIEW_MAX_W = 480
 class ModeloDialog(ctk.CTkToplevel):
     def __init__(self, master, db_path: str, fonte_path: str,
                  tipo: TipoModelo = TipoModelo.PROFISSAO,
-                 modelo: Modelo | None = None, on_saved=None, **kw):
+                 modelo: Modelo | None = None, grupo_sugerido: str | None = None,
+                 on_saved=None, **kw):
         super().__init__(master, **kw)
         self._db      = db_path
         self._fonte   = fonte_path
@@ -69,6 +70,8 @@ class ModeloDialog(ctk.CTkToplevel):
             self._lbl_psd.configure(text=self._nome_curto(modelo.psd_path))
             mapa_existente = {c.nome: c for c in modelo.camadas}
             self._carregar_camadas(modelo.psd_path, mapa_existente=mapa_existente)
+        elif grupo_sugerido and self._combo_selecao is not None:
+            self._combo_selecao.set(grupo_sugerido)
 
     # ── UI ────────────────────────────────────────────────────────────────────
 

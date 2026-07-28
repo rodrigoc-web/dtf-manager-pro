@@ -40,8 +40,9 @@ class PedidosScreen(ctk.CTkFrame):
     _PLACEHOLDER_PROFISSAO = "Selecione a profissão"
     _PLACEHOLDER_SELECAO = "Selecione a seleção/time"
     _PLACEHOLDER_VARIACAO = "Selecione o modelo"
+    _SENTINELA_ADICIONAR = "+  Adicionar novo..."
 
-    def __init__(self, master, db_path: str, on_concluido=None, **kw):
+    def __init__(self, master, db_path: str, on_concluido=None, on_pedir_novo_modelo=None, **kw):
         super().__init__(master, fg_color=FUNDO, corner_radius=0, **kw)
         self._db = db_path
         self._modelos = []
@@ -50,6 +51,7 @@ class PedidosScreen(ctk.CTkFrame):
         self._modelo_selecionado = None
         self._rodando = False
         self._on_concluido = on_concluido
+        self._on_pedir_novo_modelo = on_pedir_novo_modelo
 
         # Resumo ao vivo da fila durante uma produção — os eventos chegam de
         # uma thread de background (production_service roda em thread), então
@@ -131,7 +133,8 @@ class PedidosScreen(ctk.CTkFrame):
                      font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB, anchor="w").pack(anchor="w")
         self._combo_marketplace = ctk.CTkComboBox(
-            bloco_mkt, values=self._nomes_marketplaces(), height=34)
+            bloco_mkt, values=self._com_adicionar(self._nomes_marketplaces()), height=34,
+            command=self._on_selecionar_marketplace_combo)
         self._combo_marketplace.set("")
         self._combo_marketplace.pack(fill="x", pady=(2, 10))
 
@@ -182,6 +185,12 @@ class PedidosScreen(ctk.CTkFrame):
             command=self._confirmar_gerar)
         self._btn_gerar.grid(row=4, column=0, sticky="e", padx=12, pady=(0, 12))
 
+    def _com_adicionar(self, valores: list[str]) -> list[str]:
+        """Acrescenta a opção '+ Adicionar novo...' ao final de uma lista
+        suspensa — selecioná-la abre o cadastro do item correspondente
+        (modelo/marketplace) sem precisar sair da tela de Pedidos."""
+        return list(valores) + [self._SENTINELA_ADICIONAR]
+
     def _marcar_categoria_ativa(self):
         for tipo, btn in self._botoes_categoria.items():
             if tipo == self._categoria:
@@ -213,7 +222,7 @@ class PedidosScreen(ctk.CTkFrame):
                          font=ctk.CTkFont("Segoe UI", 9, "bold"),
                          text_color=SUB, anchor="w").pack(anchor="w")
             self._combo_profissao = ctk.CTkComboBox(
-                bloco_prof, values=self._nomes_profissoes(), height=34,
+                bloco_prof, values=self._com_adicionar(self._nomes_profissoes()), height=34,
                 command=self._on_selecionar_profissao_combo)
             self._combo_profissao.set(self._PLACEHOLDER_PROFISSAO)
             self._combo_profissao.pack(fill="x", pady=(2, 0))
@@ -235,17 +244,34 @@ class PedidosScreen(ctk.CTkFrame):
             self._entry_telefone.pack(fill="x", pady=(2, 0))
             return
 
-        # TIME — cascata Seleção -> Variação (as duas em lista suspensa)
+        # TIME — Seleção e Modelo lado a lado (as duas em lista suspensa); a
+        # tabela de jogadores abaixo usa esse MESMO modelo pra todas as
+        # linhas -- serve pra gerar N nomes diferentes de UM modelo de cada
+        # vez, igual à planilha do DTF MANAGER original.
         linha_a = ctk.CTkFrame(self._frame_selecao, fg_color="transparent")
         linha_a.pack(fill="x")
-        ctk.CTkLabel(linha_a, text="Seleção / time",
+
+        bloco_selecao = ctk.CTkFrame(linha_a, fg_color="transparent")
+        bloco_selecao.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        ctk.CTkLabel(bloco_selecao, text="Seleção / time",
                      font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB, anchor="w").pack(anchor="w")
         self._combo_selecao = ctk.CTkComboBox(
-            linha_a, values=self._nomes_selecoes(), height=34,
+            bloco_selecao, values=self._com_adicionar(self._nomes_selecoes()), height=34,
             command=self._on_selecionar_selecao_combo)
         self._combo_selecao.set(self._PLACEHOLDER_SELECAO)
         self._combo_selecao.pack(fill="x", pady=(2, 8))
+
+        bloco_modelo = ctk.CTkFrame(linha_a, fg_color="transparent")
+        bloco_modelo.pack(side="left", fill="x", expand=True)
+        ctk.CTkLabel(bloco_modelo, text="Modelo",
+                     font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").pack(anchor="w")
+        self._combo_variacao = ctk.CTkComboBox(
+            bloco_modelo, values=self._com_adicionar(self._nomes_variacoes()), height=34,
+            command=self._on_selecionar_variacao_combo)
+        self._combo_variacao.set(self._PLACEHOLDER_VARIACAO)
+        self._combo_variacao.pack(fill="x", pady=(2, 8))
 
         self._frame_variacao = ctk.CTkFrame(self._frame_selecao, fg_color="transparent")
         self._frame_variacao.pack(fill="x")
@@ -257,30 +283,27 @@ class PedidosScreen(ctk.CTkFrame):
             w.destroy()
         self._linhas_time: list[dict[str, ctk.CTkBaseClass]] = []
 
-        # Tabela em lote (Modelo / Nome / Nº Peito / Nº Costas / Qtd) — cada
-        # LINHA escolhe seu próprio modelo cadastrado (adulto/infantil, cor,
-        # com/sem escudo etc.), igual à planilha do DTF MANAGER original: dá
-        # pra misturar variações diferentes no mesmo lote, uma pessoa de
-        # cada vez, sem precisar repetir o pedido inteiro por combinação.
-        ctk.CTkLabel(self._frame_variacao,
-                     text=f"Jogadores — seleção {self._grupo_selecionado} "
-                          "(escolha o modelo de cada um)",
+        # Tabela em lote (Nome / Nº Peito / Nº Costas / Qtd) — todas as
+        # linhas usam o modelo escolhido acima; preenche vários jogadores de
+        # uma vez e "Adicionar pedido" cria todos juntos, sem repetir a
+        # seleção do modelo pra cada um (igual à planilha do DTF MANAGER
+        # original: nome / número frente / número costas por linha).
+        ctk.CTkLabel(self._frame_variacao, text="Jogadores (preencha quantas linhas precisar)",
                      font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB, anchor="w").pack(anchor="w")
 
         cabecalho = ctk.CTkFrame(self._frame_variacao, fg_color="transparent")
         cabecalho.pack(fill="x", padx=2, pady=(4, 2))
-        for col, texto, peso in ((0, "Modelo", 2), (1, "Nome", 2),
-                                 (2, "Nº Peito", 1), (3, "Nº Costas", 1), (4, "Qtd.", 0)):
+        for col, texto, peso in ((0, "Nome", 2), (1, "Nº Peito", 1), (2, "Nº Costas", 1), (3, "Qtd.", 0)):
             cabecalho.grid_columnconfigure(col, weight=peso)
             ctk.CTkLabel(cabecalho, text=texto, font=ctk.CTkFont("Segoe UI", 9, "bold"),
                          text_color=SUB, anchor="w").grid(row=0, column=col, sticky="w", padx=(4, 6))
 
         self._painel_jogadores = ctk.CTkScrollableFrame(
-            self._frame_variacao, fg_color=FUNDO, corner_radius=8, height=150,
+            self._frame_variacao, fg_color=FUNDO, corner_radius=8, height=130,
             border_width=1, border_color=BORDA)
         self._painel_jogadores.pack(fill="x", pady=(0, 6))
-        for col, peso in ((0, 2), (1, 2), (2, 1), (3, 1), (4, 0), (5, 0)):
+        for col, peso in ((0, 2), (1, 1), (2, 1), (3, 0), (4, 0)):
             self._painel_jogadores.grid_columnconfigure(col, weight=peso)
 
         self._adicionar_linha_jogador()
@@ -292,40 +315,37 @@ class PedidosScreen(ctk.CTkFrame):
 
     def _adicionar_linha_jogador(self):
         i = len(self._linhas_time)
-        combo_modelo = ctk.CTkComboBox(
-            self._painel_jogadores, height=30, values=self._nomes_variacoes(),
-            font=ctk.CTkFont("Segoe UI", 10))
-        combo_modelo.set(self._PLACEHOLDER_VARIACAO)
-        combo_modelo.grid(row=i, column=0, sticky="ew", padx=(4, 4), pady=3)
         entry_nome = ctk.CTkEntry(self._painel_jogadores, height=30, placeholder_text="Nome")
-        entry_nome.grid(row=i, column=1, sticky="ew", padx=(0, 4), pady=3)
+        entry_nome.grid(row=i, column=0, sticky="ew", padx=(4, 4), pady=3)
         entry_peito = ctk.CTkEntry(self._painel_jogadores, height=30, placeholder_text="10")
-        entry_peito.grid(row=i, column=2, sticky="ew", padx=(0, 4), pady=3)
+        entry_peito.grid(row=i, column=1, sticky="ew", padx=(0, 4), pady=3)
         entry_costas = ctk.CTkEntry(self._painel_jogadores, height=30, placeholder_text="10")
-        entry_costas.grid(row=i, column=3, sticky="ew", padx=(0, 4), pady=3)
+        entry_costas.grid(row=i, column=2, sticky="ew", padx=(0, 4), pady=3)
         entry_qtd = ctk.CTkEntry(self._painel_jogadores, height=30, width=44)
         entry_qtd.insert(0, "1")
-        entry_qtd.grid(row=i, column=4, sticky="ew", padx=(0, 4), pady=3)
+        entry_qtd.grid(row=i, column=3, sticky="ew", padx=(0, 4), pady=3)
 
-        linha = {"modelo": combo_modelo, "nome": entry_nome, "peito": entry_peito,
-                "costas": entry_costas, "qtd": entry_qtd}
+        linha = {"nome": entry_nome, "peito": entry_peito, "costas": entry_costas, "qtd": entry_qtd}
         btn_limpar = ctk.CTkButton(
             self._painel_jogadores, text="✕", width=26, height=26,
             fg_color="transparent", text_color=VERMELHO, hover_color=VERMELHO_BG,
             command=lambda ld=linha: self._limpar_linha_jogador(ld))
-        btn_limpar.grid(row=i, column=5, padx=(0, 4), pady=3)
+        btn_limpar.grid(row=i, column=4, padx=(0, 4), pady=3)
         self._linhas_time.append(linha)
 
     def _limpar_linha_jogador(self, linha: dict[str, ctk.CTkBaseClass]):
         """'Remover' só limpa os campos (nunca reindexar linhas no meio da
         tabela) — linhas totalmente em branco são simplesmente ignoradas na
         hora de adicionar os pedidos em lote."""
-        linha["modelo"].set(self._PLACEHOLDER_VARIACAO)
         linha["nome"].delete(0, "end")
         linha["peito"].delete(0, "end")
         linha["costas"].delete(0, "end")
         linha["qtd"].delete(0, "end")
         linha["qtd"].insert(0, "1")
+
+    def _abrir_novo_modelo_time(self):
+        if self._on_pedir_novo_modelo:
+            self._on_pedir_novo_modelo(TipoModelo.TIME, self._grupo_selecionado)
 
     def _carregar_modelos(self):
         from infrastructure.db import modelos_repo
@@ -338,6 +358,11 @@ class PedidosScreen(ctk.CTkFrame):
         return nomes or ["Nenhuma profissão cadastrada"]
 
     def _on_selecionar_profissao_combo(self, nome: str):
+        if nome == self._SENTINELA_ADICIONAR:
+            self._combo_profissao.set(self._PLACEHOLDER_PROFISSAO)
+            if self._on_pedir_novo_modelo:
+                self._on_pedir_novo_modelo(TipoModelo.PROFISSAO, None)
+            return
         if nome == self._PLACEHOLDER_PROFISSAO:
             self._modelo_selecionado = None
             return
@@ -358,6 +383,15 @@ class PedidosScreen(ctk.CTkFrame):
                 resultado.append(nome)
         return resultado
 
+    def _on_selecionar_marketplace_combo(self, nome: str):
+        # O campo já aceita digitação livre (basta digitar e sair) — o item
+        # "+ Adicionar novo..." só limpa o campo e deixa o cursor pronto pra
+        # digitar, servindo de atalho visível pra quem não percebeu que dá
+        # pra digitar direto.
+        if nome == self._SENTINELA_ADICIONAR:
+            self._combo_marketplace.set("")
+            self._combo_marketplace.focus_set()
+
     # ── Seleção/time (Time — 1º passo da cascata, dropdown) ─────────────────
 
     def _nomes_selecoes(self) -> list[str]:
@@ -366,15 +400,23 @@ class PedidosScreen(ctk.CTkFrame):
         return grupos or ["Nenhuma seleção cadastrada"]
 
     def _on_selecionar_selecao_combo(self, grupo: str):
+        if grupo == self._SENTINELA_ADICIONAR:
+            self._combo_selecao.set(self._PLACEHOLDER_SELECAO)
+            self._abrir_novo_modelo_time()
+            return
         from infrastructure.db import modelos_repo
         if grupo not in modelos_repo.listar_grupos_time(self._db):
             self._grupo_selecionado = None
             self._modelo_selecionado = None
+            self._combo_variacao.configure(values=self._com_adicionar(self._nomes_variacoes()))
+            self._combo_variacao.set(self._PLACEHOLDER_VARIACAO)
             for w in self._frame_variacao.winfo_children():
                 w.destroy()
             return
         self._grupo_selecionado = grupo
         self._modelo_selecionado = None
+        self._combo_variacao.configure(values=self._com_adicionar(self._nomes_variacoes()))
+        self._combo_variacao.set(self._PLACEHOLDER_VARIACAO)
         self._montar_linha_variacao()
 
     # ── Modelo cadastrado / variação (Time — 2º passo da cascata, dropdown) ─
@@ -388,6 +430,16 @@ class PedidosScreen(ctk.CTkFrame):
         return next(
             (m for m in self._modelos if m.tipo == TipoModelo.TIME
              and m.grupo == self._grupo_selecionado and m.profissao == nome), None)
+
+    def _on_selecionar_variacao_combo(self, nome: str):
+        if nome == self._SENTINELA_ADICIONAR:
+            self._combo_variacao.set(self._PLACEHOLDER_VARIACAO)
+            self._abrir_novo_modelo_time()
+            return
+        if nome == self._PLACEHOLDER_VARIACAO:
+            self._modelo_selecionado = None
+            return
+        self._modelo_selecionado = self._resolver_modelo_time(nome)
 
     # ── Adicionar pedido ──────────────────────────────────────────────────────
 
@@ -442,15 +494,20 @@ class PedidosScreen(ctk.CTkFrame):
 
     def _adicionar_lote_time(self):
         """Cria um pedido por LINHA preenchida da tabela de jogadores, todos
-        de uma vez — cada linha escolhe seu PRÓPRIO modelo (variação), então
-        dá pra misturar adulto/infantil, cores, com/sem escudo no mesmo lote,
-        igual à planilha do DTF MANAGER original (nome / nº frente / nº
-        costas / tipo de modelo por linha)."""
+        de uma vez, todos usando o MESMO modelo escolhido acima — evita
+        repetir Seleção/Modelo pedido por pedido, que seria inviável pra um
+        time inteiro (era assim que a planilha do DTF MANAGER original
+        funcionava: nome / número frente / número costas por linha)."""
         from infrastructure.db import pedidos_repo
 
-        if not self._grupo_selecionado:
-            messagebox.showwarning("Seleção não escolhida",
-                "Escolha a seleção/time primeiro.")
+        modelo = self._modelo_selecionado
+        if not modelo:
+            if not self._grupo_selecionado:
+                messagebox.showwarning("Seleção não escolhida",
+                    "Escolha a seleção/time e depois o modelo cadastrado dela.")
+            else:
+                messagebox.showwarning("Modelo não escolhido",
+                    "Escolha o modelo cadastrado na lista suspensa.")
             return
 
         marketplace = self._combo_marketplace.get().strip()
@@ -459,18 +516,12 @@ class PedidosScreen(ctk.CTkFrame):
         linhas_incompletas: list[int] = []
 
         for i, linha in enumerate(self._linhas_time, start=1):
-            nome_modelo = linha["modelo"].get().strip()
             nome = linha["nome"].get().strip()
             peito = linha["peito"].get().strip()
             costas = linha["costas"].get().strip()
-            tem_modelo = nome_modelo and nome_modelo != self._PLACEHOLDER_VARIACAO
-            if not tem_modelo and not nome and not peito and not costas:
+            if not nome and not peito and not costas:
                 continue   # linha em branco — ignora, não é erro
-            if not tem_modelo or not (nome and peito and costas):
-                linhas_incompletas.append(i)
-                continue
-            modelo = self._resolver_modelo_time(nome_modelo)
-            if modelo is None:
+            if not (nome and peito and costas):
                 linhas_incompletas.append(i)
                 continue
             try:
@@ -486,13 +537,13 @@ class PedidosScreen(ctk.CTkFrame):
         if linhas_incompletas:
             messagebox.showwarning(
                 "Linhas incompletas",
-                "Preencha Modelo, Nome, Nº Peito e Nº Costas nas linhas: "
+                "Preencha Nome, Nº Peito e Nº Costas nas linhas: "
                 f"{', '.join(map(str, linhas_incompletas))}.\n"
                 "(ou deixe a linha totalmente em branco pra ignorá-la)")
             return
         if not pedidos_prontos:
             messagebox.showwarning("Nenhum jogador preenchido",
-                "Preencha ao menos uma linha com Modelo, Nome, Nº Peito e Nº Costas.")
+                "Preencha ao menos uma linha com Nome, Nº Peito e Nº Costas.")
             return
 
         try:
@@ -699,15 +750,13 @@ class PedidosScreen(ctk.CTkFrame):
         from infrastructure.db import pedidos_repo
         self._carregar_modelos()
         if self._categoria == TipoModelo.PROFISSAO and hasattr(self, "_combo_profissao"):
-            self._combo_profissao.configure(values=self._nomes_profissoes())
+            self._combo_profissao.configure(values=self._com_adicionar(self._nomes_profissoes()))
         if self._categoria == TipoModelo.TIME and hasattr(self, "_combo_selecao"):
-            self._combo_selecao.configure(values=self._nomes_selecoes())
-            if hasattr(self, "_linhas_time"):
-                valores = self._nomes_variacoes()
-                for linha in self._linhas_time:
-                    linha["modelo"].configure(values=valores)
+            self._combo_selecao.configure(values=self._com_adicionar(self._nomes_selecoes()))
+            if hasattr(self, "_combo_variacao"):
+                self._combo_variacao.configure(values=self._com_adicionar(self._nomes_variacoes()))
         if hasattr(self, "_combo_marketplace"):
-            self._combo_marketplace.configure(values=self._nomes_marketplaces())
+            self._combo_marketplace.configure(values=self._com_adicionar(self._nomes_marketplaces()))
 
         for w in self._lista.winfo_children():
             w.destroy()

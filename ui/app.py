@@ -184,7 +184,8 @@ class DTFProApp(ctk.CTk):
             return ModelosScreen(self._conteudo, self._db, self._fonte)
         if chave == "pedidos":
             from ui.telas.pedidos_screen import PedidosScreen
-            return PedidosScreen(self._conteudo, self._db, on_concluido=self._apos_producao)
+            return PedidosScreen(self._conteudo, self._db, on_concluido=self._apos_producao,
+                                 on_pedir_novo_modelo=self.abrir_modelos_para_novo)
         if chave == "historico":
             from ui.telas.historico_screen import HistoricoScreen
             return HistoricoScreen(self._conteudo, self._db)
@@ -199,6 +200,13 @@ class DTFProApp(ctk.CTk):
             return AjudaScreen(self._conteudo, self._db,
                                on_verificar_atualizacao=self.verificar_atualizacao_manual)
         raise ValueError(f"Tela desconhecida: {chave}")
+
+    def abrir_modelos_para_novo(self, tipo, grupo_sugerido=None):
+        """Chamado pelo item '+ Adicionar novo...' das listas suspensas de
+        Pedidos (Modelo/Profissão) — leva direto pro cadastro em Modelos,
+        já na aba certa e (pra Time) com a seleção pré-preenchida."""
+        self.navegar("modelos")
+        self._telas["modelos"].abrir_novo(tipo, grupo_sugerido)
 
     def _apos_producao(self):
         if "dashboard" in self._telas:

@@ -258,6 +258,14 @@ class ModelosScreen(ctk.CTkFrame):
     def _novo_modelo(self):
         ModeloDialog(self, self._db, self._fonte, tipo=self._aba_ativa, on_saved=self.atualizar)
 
+    def abrir_novo(self, tipo: TipoModelo, grupo_sugerido: str | None = None):
+        """Atalho usado pelo '+ Adicionar novo...' das listas suspensas de
+        Pedidos — troca pra aba certa e já abre o cadastro."""
+        if tipo != self._aba_ativa:
+            self._trocar_aba(tipo)
+        ModeloDialog(self, self._db, self._fonte, tipo=tipo,
+                     grupo_sugerido=grupo_sugerido, on_saved=self.atualizar)
+
     def _editar_modelo(self, modelo):
         modelo_id = modelo.id
         ModeloDialog(self, self._db, self._fonte, modelo=modelo,
