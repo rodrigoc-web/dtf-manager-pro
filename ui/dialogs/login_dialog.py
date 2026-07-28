@@ -34,7 +34,7 @@ from tkinter import messagebox
 
 from core import session
 from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, SIDEBAR_HOVER, CARD_ESCURO, BORDA_ESCURA,
-                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, VERDE_PRESSIONADO, VERDE_ESCURO)
+                      BRANCO, PRETO, VERDE_GLOW, VERDE, VERDE_HOVER, VERDE_PRESSIONADO, VERDE_ESCURO)
 from ui import icons
 
 
@@ -55,8 +55,15 @@ LARGURA_ALVO = 1000
 # 680 era o canvas exato do mockup original, mas com fontes/DPI reais o
 # conteúdo (logo + textos + pill + botão + rodapé de 2 linhas) passa disso
 # -- a 2ª linha de cada descrição no rodapé ficava cortada fora da janela.
-# 40px a mais é o suficiente pra caber tudo sem cortar nada.
-ALTURA_ALVO = 720
+# 40px a mais é o suficiente pra caber tudo sem cortar nada. Só usado como
+# referência de proporção (LARGURA_ALVO/ALTURA_ALVO) pro cálculo de escala
+# -- o tamanho real da janela agora vem de FRACAO_LARGURA_TELA, não daqui.
+ALTURA_ALVO = 850
+# A janela era um tamanho fixo em pixels (1000×720) igual em qualquer
+# monitor -- ficava enorme numa tela de notebook comum (ex.: 1366×768,
+# ocupava quase a tela toda). Agora o tamanho é uma fração da tela do
+# usuário, preservando a mesma proporção do design (720/1000).
+FRACAO_LARGURA_TELA = 0.56
 DURACAO_SPLASH_MS = 1600
 
 
@@ -72,7 +79,11 @@ class LoginDialog(ctk.CTkToplevel):
         # qualquer chamada nativa depois (TclError "bad window path name").
         self._largura, self._altura = self._centralizar()
         self._escala = min(self._largura / LARGURA_ALVO, self._altura / ALTURA_ALVO)
-        self._escala_ui = max(self._escala, 0.85)   # piso p/ texto/controles não ficarem ilegíveis
+        # Piso bem mais baixo que antes (era 0.85): a janela agora É PRA SER
+        # menor de propósito (proporcional à tela do usuário), então nada
+        # deveria forçar o conteúdo de volta a um tamanho quase original --
+        # só existe pra evitar texto ilegível em telas realmente minúsculas.
+        self._escala_ui = max(self._escala, 0.6)
         self.resizable(False, False)
         self.configure(fg_color=SIDEBAR_BG)
         from ui.components.titlebar import aplicar_padrao_janela
@@ -86,13 +97,17 @@ class LoginDialog(ctk.CTkToplevel):
         self.after(DURACAO_SPLASH_MS, self._montar_login)
 
     def _centralizar(self) -> tuple[int, int]:
-        # Folga pequena (não os 15% usados na janela principal) — o alvo já
-        # é um tamanho compacto de propósito; só entra em jogo em telas
-        # genuinamente pequenas, não deveria disparar em nenhum notebook comum.
+        # Tamanho proporcional à tela do usuário (metade da largura), não
+        # mais um pixel fixo -- num notebook pequeno a janela fica pequena
+        # também, num monitor grande ela cresce junto, sempre na mesma
+        # proporção do design (720/1000). Pisos (640×460) só entram em jogo
+        # em telas realmente minúsculas, pra não ficar ilegível.
         FOLGA_PX = 60
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        w = max(760, min(LARGURA_ALVO, sw - FOLGA_PX))
-        h = max(520, min(ALTURA_ALVO, sh - FOLGA_PX))
+        w = round(sw * FRACAO_LARGURA_TELA)
+        h = round(w * (ALTURA_ALVO / LARGURA_ALVO))
+        w = max(640, min(w, sw - FOLGA_PX))
+        h = max(460, min(h, sh - FOLGA_PX))
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
         return w, h
 
@@ -167,13 +182,24 @@ class LoginDialog(ctk.CTkToplevel):
         if not self.winfo_exists():
             return   # fechado durante o splash — nada a fazer
         raiz = self._limpar_conteudo()
-        raiz.grid_columnconfigure(0, weight=3)
-        raiz.grid_columnconfigure(1, weight=2)
+        # Era 3:2 (esquerda bem mais larga) -- a ilustração ficava espremida
+        # numa coluna estreita e, sendo uma imagem "paisagem" (mais larga que
+        # alta), a LARGURA virava o fator limitante do contain-fit e ela
+        # saía pequena, sobrando espaço vazio em cima/embaixo. Metade/metade
+        # bate com a proporção do mockup de referência.
+        # `uniform` força as duas colunas a terem EXATAMENTE a mesma largura
+        # -- só `weight` igual não bastava, porque grid só reparte espaço
+        # SOBRANDO depois de cada coluna já receber o mínimo que o próprio
+        # conteúdo pede; como o conteúdo da esquerda (rodapé de 3 blocos)
+        # sempre pedia mais que a metade, a direita nunca sobrava o
+        # suficiente pra ilustração ficar do tamanho do mockup.
+        raiz.grid_columnconfigure(0, weight=13, uniform="colunas_login")
+        raiz.grid_columnconfigure(1, weight=10, uniform="colunas_login")
         raiz.grid_rowconfigure(0, weight=1)
 
         esquerda = ctk.CTkFrame(raiz, fg_color="transparent")
         esquerda.grid(row=0, column=0, sticky="nsew",
-                      padx=(self._px(56), self._px(24)), pady=(self._px(32), self._px(26)))
+                      padx=(self._px(48), self._px(16)), pady=(self._px(32), self._px(26)))
         esquerda.grid_columnconfigure(0, weight=1)
 
         self._montar_logo(esquerda)
@@ -184,6 +210,44 @@ class LoginDialog(ctk.CTkToplevel):
         self._montar_ilustracao(raiz)
 
         self.after(80, lambda: self._combo.focus_set() if hasattr(self, "_combo") else None)
+        self.after(50, lambda: self._ajustar_altura_se_necessario(tentativas=4))
+
+    def _ajustar_altura_se_necessario(self, tentativas: int):
+        """Rede de segurança contra conteúdo cortado embaixo -- já aconteceu
+        duas vezes (altura fixa 680px insuficiente; depois a fração de tela
+        0.5 combinada com o piso de fonte de 9pt fazendo o texto não encolher
+        na mesma proporção da janela). Em vez de caçar mais um número mágico,
+        mede a posição real do widget mais baixo depois do layout e cresce a
+        janela (só a altura, nunca a largura) se precisar -- funciona em
+        qualquer tela, com qualquer combinação de fontes/paddings.
+
+        Título com wraplength (ex.: "Histórico por operador" quebrando pra
+        2 linhas) só termina de reajustar a própria altura depois de mais
+        um ciclo do event loop -- por isso mede de novo (até `tentativas`
+        vezes) depois de cada correção, em vez de confiar numa única medição."""
+        if not self.winfo_exists() or tentativas <= 0:
+            return
+        self.update_idletasks()
+
+        def _mais_baixo(widget) -> int:
+            y1 = widget.winfo_rooty() + widget.winfo_height()
+            for filho in widget.winfo_children():
+                y1 = max(y1, _mais_baixo(filho))
+            return y1
+
+        fundo_conteudo = _mais_baixo(self)
+        fundo_janela = self.winfo_rooty() + self.winfo_height()
+        falta = fundo_conteudo - fundo_janela
+        if falta > 0:
+            sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+            margem = self._px(16)
+            nova_altura = min(self._altura + falta + margem, sh - 60)
+            if nova_altura > self._altura:
+                self._altura = nova_altura
+                x = self.winfo_x()
+                y = max(10, (sh - nova_altura) // 2)
+                self.geometry(f"{self._largura}x{nova_altura}+{x}+{y}")
+        self.after(50, lambda: self._ajustar_altura_se_necessario(tentativas - 1))
 
     def _montar_logo(self, master):
         # Logo = a IMAGEM de verdade (assets/logo_completo.png), não texto
@@ -252,13 +316,14 @@ class LoginDialog(ctk.CTkToplevel):
             pill, height=altura_pill - self._px(4), values=nomes, border_width=0,
             corner_radius=self._px(8),
             fg_color=CARD_ESCURO, text_color=BRANCO,
-            button_color=VERDE_GLOW, button_hover_color=VERDE,
+            button_color=CARD_ESCURO, button_hover_color=SIDEBAR_HOVER,
             dropdown_fg_color=CARD_ESCURO, dropdown_text_color=BRANCO,
             dropdown_hover_color=SIDEBAR_HOVER,
             font=self._fnt(13))
         self._combo.set(ultimo if ultimo else (nomes[0] if nomes else ""))
         self._combo.pack(side="left", fill="both", expand=True, padx=(0, self._px(8)))
         self._combo.bind("<Return>", lambda e: self._confirmar())
+        self._sobrepor_seta_dropdown(altura_pill - self._px(4))
 
         ctk.CTkLabel(master, text="Novo por aqui? Só digitar o nome e confirmar.",
                      font=self._fnt(9), text_color=SIDEBAR_TEXTO,
@@ -268,6 +333,46 @@ class LoginDialog(ctk.CTkToplevel):
 
         ctk.CTkFrame(master, fg_color=BORDA_ESCURA, height=1, corner_radius=0).pack(
             fill="x", pady=(0, self._px(22)))
+
+    def _sobrepor_seta_dropdown(self, lado_botao: int):
+        """CTkComboBox desenha a própria seta internamente num Canvas (não
+        aceita uma imagem customizada por parâmetro) -- o botão quadrado do
+        lado direito tem sempre lado == altura do combo. Em vez de mexer no
+        widget nativo, sobrepõe um label com o ícone de verdade do usuário
+        por cima dessa área, e repassa o clique pro método interno que abre
+        o dropdown (mesmo efeito de clicar na seta original, agora escondida
+        atrás do nosso ícone). O ícone do usuário já É verde (um chevron
+        fino) -- pensado pra ficar sobre um fundo escuro, não sobre um
+        quadrado verde sólido (o botão nativo virou CARD_ESCURO por isso,
+        senão verde-sobre-verde ficava invisível). Fundo do próprio ícone é
+        preto (pedido explícito do usuário), não o CARD_ESCURO usado no
+        resto do pill."""
+        icone = self._carregar_icone_dropdown(self._px(18))
+        if not icone:
+            return
+        overlay = ctk.CTkLabel(self._combo, image=icone, text="",
+                               fg_color=PRETO, corner_radius=self._px(8),
+                               width=lado_botao, height=lado_botao)
+        overlay.place(relx=1.0, rely=0.5, anchor="e")
+        overlay.configure(cursor="hand2")
+        overlay.bind("<Button-1>", lambda e: self._combo._open_dropdown_menu())
+        overlay.bind("<Enter>", lambda e: overlay.configure(fg_color=SIDEBAR_HOVER))
+        overlay.bind("<Leave>", lambda e: overlay.configure(fg_color=PRETO))
+
+    def _carregar_icone_dropdown(self, tam: int):
+        try:
+            from infrastructure.filesystem import assets_dir
+            from PIL import Image
+            caminho = assets_dir() / "login_icon_dropdown.png"
+            if not caminho.exists():
+                return None
+            img = Image.open(caminho)
+            escala = min(tam / img.width, tam / img.height)
+            largura = round(img.width * escala)
+            altura = round(img.height * escala)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(largura, altura))
+        except Exception:
+            return None
 
     def _montar_botao_entrar(self, master):
         """Botão "Entrar" com gradiente horizontal (hover→verde→pressionado→
@@ -356,13 +461,19 @@ class LoginDialog(ctk.CTkToplevel):
             linha.grid_columnconfigure(col, weight=1)
             bloco = ctk.CTkFrame(linha, fg_color="transparent")
             bloco.grid(row=0, column=col, sticky="nw", padx=(0 if col == 0 else self._px(14), 0))
-            icone = self._carregar_icone_recurso(arquivo_icone, self._px(32))
+            # Ícone ao lado do texto (não empilhado em cima) -- bate com o
+            # mockup de referência: ícone à esquerda, título+descrição
+            # empilhados à direita dele, os dois verticalmente centralizados
+            # um em relação ao outro.
+            icone = self._carregar_icone_recurso(arquivo_icone, self._px(30))
             if icone:
-                ctk.CTkLabel(bloco, image=icone, text="").pack(anchor="w", pady=(0, self._px(8)))
-            ctk.CTkLabel(bloco, text=titulo, font=self._fnt(11, True),
+                ctk.CTkLabel(bloco, image=icone, text="").pack(side="left", anchor="n", padx=(0, self._px(10)))
+            textos = ctk.CTkFrame(bloco, fg_color="transparent")
+            textos.pack(side="left", fill="x", expand=True)
+            ctk.CTkLabel(textos, text=titulo, font=self._fnt(11, True),
                          text_color=BRANCO, anchor="w", justify="left",
-                         wraplength=self._px(150)).pack(anchor="w")
-            ctk.CTkLabel(bloco, text=desc, font=self._fnt(9),
+                         wraplength=self._px(95)).pack(anchor="w")
+            ctk.CTkLabel(textos, text=desc, font=self._fnt(9),
                          text_color=SIDEBAR_TEXTO, anchor="w", justify="left").pack(anchor="w", pady=(self._px(2), 0))
 
     def _carregar_icone_recurso(self, nome_arquivo: str, tam: int):
@@ -380,26 +491,39 @@ class LoginDialog(ctk.CTkToplevel):
     def _montar_ilustracao(self, raiz):
         direita = ctk.CTkFrame(raiz, fg_color="transparent")
         direita.grid(row=0, column=1, sticky="nsew")
-        try:
-            from infrastructure.filesystem import assets_dir
-            from PIL import Image
-            caminho = assets_dir() / "login_ilustracao.png"
-            if caminho.exists():
+
+        def _carregar():
+            # Precisa do tamanho REAL da coluna "direita" já renderizado --
+            # um tam fixo (self._px(440)) podia passar da largura de verdade
+            # dessa coluna (mais estreita que os 2/5 do grid sugerem, com os
+            # paddings), cortando a imagem na borda da janela. Contain-fit
+            # dentro do tamanho real da coluna garante a imagem inteira
+            # sempre visível, sem cortar nada.
+            largura_col = direita.winfo_width()
+            altura_col = direita.winfo_height()
+            if largura_col <= 1 or altura_col <= 1:
+                self.after(10, _carregar)
+                return
+            try:
+                from infrastructure.filesystem import assets_dir
+                from PIL import Image
+                caminho = assets_dir() / "login_ilustracao.png"
+                if not caminho.exists():
+                    return
                 img = Image.open(caminho)
-                # Contain-fit (preserva proporção) dentro de uma caixa de
-                # tam×tam -- forçar um CTkImage quadrado direto distorcia
-                # qualquer imagem que não fosse exatamente 1:1 (só não dava
-                # pra notar antes porque o asset antigo era 738×738).
-                tam = self._px(440)
-                escala = min(tam / img.width, tam / img.height)
+                margem = self._px(16)
+                caixa_w = max(1, largura_col - margem * 2)
+                caixa_h = max(1, altura_col - margem * 2)
+                escala = min(caixa_w / img.width, caixa_h / img.height)
                 largura = round(img.width * escala)
                 altura = round(img.height * escala)
                 self._img_ilustracao = ctk.CTkImage(light_image=img, dark_image=img,
                                                     size=(largura, altura))
                 ctk.CTkLabel(direita, image=self._img_ilustracao, text="").place(
                     relx=0.5, rely=0.5, anchor="center")
-        except Exception:
-            pass
+            except Exception:
+                pass
+        self.after(1, _carregar)
 
     # ── Ações ────────────────────────────────────────────────────────────────
 
