@@ -138,8 +138,10 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
     largura_coluna = cm_para_px(config_repo.obter_float(db, "grade_largura_coluna_cm", 28.5))
     altura_coluna  = cm_para_px(config_repo.obter_float(db, "grade_altura_coluna_cm", 40.0))
     largura_rolo   = cm_para_px(config_repo.obter_float(db, "grade_largura_rolo_cm", 57.0))
+    espacamento_colunas = cm_para_px(config_repo.obter_float(db, "grade_espacamento_colunas_cm", 2.0))
     folha = montar_folha_combinada(
-        artes_profissao, artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo)
+        artes_profissao, artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo,
+        gap_colunas=espacamento_colunas)
     png      = salvar_png(folha, pasta_lote, lote_id)
     pdf      = salvar_pdf(png, pasta_lote, lote_id)
     try:

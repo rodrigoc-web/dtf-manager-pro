@@ -37,7 +37,8 @@ def montar_folha_grade(
         altura_coluna: int,
         largura_rolo: int,
         margem_lateral: int = MARGEM_LATERAL,
-        gap: int = GAP_ENTRE_ARTES) -> Image.Image:
+        gap: int = GAP_ENTRE_ARTES,
+        gap_colunas: int | None = None) -> Image.Image:
     """
     Organiza as artes numa grade de `num_colunas` colunas (preenche por
     linha, esquerda→direita, depois desce uma linha), redimensionando cada
@@ -45,15 +46,25 @@ def montar_folha_grade(
     altura_coluna) e centralizando o resultado nela. Como toda célula tem
     tamanho fixo, todas as linhas têm a mesma altura (mais simples que o
     empacotamento antigo, que calculava altura máxima por linha).
+
+    `gap_colunas` é o respiro HORIZONTAL entre colunas — separado de `gap`
+    (que continua só pro respiro vertical entre linhas), porque o usuário
+    pediu especificamente pra poder controlar a distância entre colunas na
+    tela Configurações (as artes vinham grudadas, ficando "apertado"/
+    amador com pouco espaço de corte entre uma pessoa e outra). Se não for
+    passado, cai no mesmo valor de `gap` — preserva o comportamento antigo
+    pra quem não mexer na configuração nova.
     """
     num_colunas    = max(1, num_colunas)
     largura_coluna = max(1, largura_coluna)
     altura_coluna  = max(1, altura_coluna)
+    gap_colunas    = gap if gap_colunas is None else max(0, gap_colunas)
 
     if not artes:
         return Image.new("RGBA", (max(1, largura_rolo), 1), (0, 0, 0, 0))
 
-    largura_necessaria = num_colunas * largura_coluna + (num_colunas - 1) * gap + 2 * margem_lateral
+    largura_necessaria = (num_colunas * largura_coluna + (num_colunas - 1) * gap_colunas
+                          + 2 * margem_lateral)
     if largura_necessaria > largura_rolo:
         log.aviso(
             f"{num_colunas} coluna(s) de {largura_coluna}px não cabem na largura "
@@ -67,7 +78,7 @@ def montar_folha_grade(
     for i, (_, img) in enumerate(artes):
         linha, col = divmod(i, num_colunas)
         ajustada = _ajustar_para_celula(img, largura_coluna, altura_coluna)
-        x_celula = margem_lateral + col * (largura_coluna + gap)
+        x_celula = margem_lateral + col * (largura_coluna + gap_colunas)
         y_celula = linha * (altura_coluna + gap)
         x = x_celula + (largura_coluna - ajustada.width) // 2
         y = y_celula + (altura_coluna - ajustada.height) // 2
@@ -79,7 +90,8 @@ def montar_folha_grade(
 def montar_folha_combinada(
         artes_profissao: list[tuple[object, Image.Image]],
         artes_time: list[tuple[object, Image.Image]],
-        num_colunas: int, largura_coluna: int, altura_coluna: int, largura_rolo: int
+        num_colunas: int, largura_coluna: int, altura_coluna: int, largura_rolo: int,
+        gap_colunas: int | None = None
 ) -> Image.Image:
     """
     Ponto de entrada usado pelo pipeline de produção: monta a folha de Times
@@ -89,10 +101,12 @@ def montar_folha_combinada(
     partes = []
     if artes_time:
         partes.append(montar_folha_grade(
-            artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo))
+            artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo,
+            gap_colunas=gap_colunas))
     if artes_profissao:
         partes.append(montar_folha_grade(
-            artes_profissao, num_colunas, largura_coluna, altura_coluna, largura_rolo))
+            artes_profissao, num_colunas, largura_coluna, altura_coluna, largura_rolo,
+            gap_colunas=gap_colunas))
 
     if not partes:
         return Image.new("RGBA", (max(1, largura_rolo), 1), (0, 0, 0, 0))
