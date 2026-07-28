@@ -63,7 +63,7 @@ ALTURA_ALVO = 850
 # monitor -- ficava enorme numa tela de notebook comum (ex.: 1366×768,
 # ocupava quase a tela toda). Agora o tamanho é uma fração da tela do
 # usuário, preservando a mesma proporção do design (720/1000).
-FRACAO_LARGURA_TELA = 0.56
+FRACAO_LARGURA_TELA = 0.8
 DURACAO_SPLASH_MS = 1600
 
 
