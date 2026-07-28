@@ -63,6 +63,7 @@ class DashboardScreen(ctk.CTkFrame):
 
         self._montar_analytics()
         self._montar_tendencia_30_dias()
+        self._montar_ultima_atividade()
         self._montar_acoes_rapidas()
         self.atualizar()
 
@@ -73,10 +74,10 @@ class DashboardScreen(ctk.CTkFrame):
         self._banner_alertas = ctk.CTkFrame(
             self, fg_color=AMARELO_BG, corner_radius=10,
             border_width=1, border_color=AMARELO)
-        self._banner_alertas.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 4))
+        self._banner_alertas.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 3))
         self._banner_alertas.grid_columnconfigure(0, weight=1)
         conteudo = ctk.CTkFrame(self._banner_alertas, fg_color="transparent")
-        conteudo.grid(row=0, column=0, sticky="ew", padx=12, pady=5)
+        conteudo.grid(row=0, column=0, sticky="ew", padx=12, pady=4)
         conteudo.grid_columnconfigure(0, weight=1)
         self._lbl_alerta = ctk.CTkLabel(
             conteudo, text="", font=ctk.CTkFont("Segoe UI", 11, "bold"),
@@ -94,7 +95,7 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _montar_topo(self):
         topo = ctk.CTkFrame(self, fg_color="transparent")
-        topo.grid(row=0, column=0, columnspan=4, sticky="ew", padx=16, pady=(10, 6))
+        topo.grid(row=0, column=0, columnspan=4, sticky="ew", padx=16, pady=(8, 4))
         topo.grid_columnconfigure(1, weight=1)
 
         menu = ctk.CTkFrame(topo, fg_color=CARD, corner_radius=10,
@@ -153,9 +154,9 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _card_kpi(self, row, col, icone_char, titulo, destino: str, sparkline: bool = False) -> dict:
         c = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
-                         border_width=1, border_color=BORDA, height=100)
+                         border_width=1, border_color=BORDA, height=70)
         c.grid(row=row, column=col, padx=(16 if col == 0 else 8, 8 if col < 3 else 16),
-               pady=(0, 6), sticky="nsew")
+               pady=(0, 4), sticky="nsew")
         c.grid_propagate(False)
 
         cabecalho = ctk.CTkFrame(c, fg_color="transparent")
@@ -232,7 +233,7 @@ class DashboardScreen(ctk.CTkFrame):
 
     def _montar_analytics(self):
         linha = ctk.CTkFrame(self._corpo, fg_color="transparent")
-        linha.grid(row=1, column=0, columnspan=4, sticky="nsew", padx=16, pady=(0, 6))
+        linha.grid(row=1, column=0, columnspan=4, sticky="nsew", padx=16, pady=(0, 4))
         linha.grid_columnconfigure((0, 1, 2, 3), weight=1)
         linha.grid_rowconfigure(0, weight=1)
 
@@ -241,8 +242,8 @@ class DashboardScreen(ctk.CTkFrame):
                             border_width=1, border_color=BORDA)
         meta.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         icons.rotulo(meta, icons.BANDEIRA, "META DO DIA", tam_icone=12, tam_texto=10,
-                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(10, 2))
-        self._cv = tk.Canvas(meta, width=52, height=52, bg=CARD, highlightthickness=0)
+                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
+        self._cv = tk.Canvas(meta, width=38, height=38, bg=CARD, highlightthickness=0)
         self._cv.pack(pady=(4, 2))
         self.lbl_meta_sub = ctk.CTkLabel(meta, text=f"0 de {META_DIA}",
                                          font=ctk.CTkFont("Segoe UI", 10),
@@ -261,7 +262,7 @@ class DashboardScreen(ctk.CTkFrame):
                           border_width=1, border_color=BORDA)
         op.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
         icons.rotulo(op, icons.ESTRELA, "OPERADOR DO MÊS", tam_icone=12, tam_texto=10,
-                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(10, 2))
+                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
         self.lbl_operador_nome = ctk.CTkLabel(op, text="—",
                                               font=ctk.CTkFont("Segoe UI", 15, "bold"),
                                               text_color=TEXTO)
@@ -269,16 +270,16 @@ class DashboardScreen(ctk.CTkFrame):
         self.lbl_operador_qtd = ctk.CTkLabel(op, text="Nenhuma produção este mês",
                                              font=ctk.CTkFont("Segoe UI", 10),
                                              text_color=SUB)
-        self.lbl_operador_qtd.pack(anchor="w", padx=14, pady=(0, 8))
+        self.lbl_operador_qtd.pack(anchor="w", padx=14, pady=(0, 5))
 
     def _card_lista(self, master, col, icone_char, titulo) -> ctk.CTkFrame:
         c = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
                          border_width=1, border_color=BORDA)
         c.grid(row=0, column=col, sticky="nsew", padx=8)
         icons.rotulo(c, icone_char, titulo, tam_icone=12, tam_texto=10,
-                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(10, 2))
+                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
         corpo = ctk.CTkFrame(c, fg_color="transparent")
-        corpo.pack(fill="both", expand=True, padx=14, pady=(0, 8))
+        corpo.pack(fill="both", expand=True, padx=14, pady=(0, 5))
         return corpo
 
     def _preencher_lista(self, corpo: ctk.CTkFrame, itens: list[tuple[str, int]]):
@@ -297,15 +298,26 @@ class DashboardScreen(ctk.CTkFrame):
                          text_color=VERDE).pack(side="right")
 
     def _desenhar_circulo(self, pct: float):
+        # Coordenadas calibradas pro canvas 52x52 (foi reduzido de 64x64 na
+        # rodada de compactação do Dashboard) -- o desenho ficou com as
+        # coordenadas ANTIGAS (raio 24 + traço 8, centro 32,32), que não
+        # cabem mais num canvas de 52px: a borda do círculo saía do canvas e
+        # cortava. width/height() reais do canvas, não valores fixos, pra
+        # nunca mais dessincronizar se o tamanho mudar de novo.
         c = self._cv
         c.delete("all")
-        cx, cy, r = 32, 32, 24
-        c.create_oval(cx - r, cy - r, cx + r, cy + r, outline=BORDA, width=8)
+        c.update_idletasks()
+        largura = c.winfo_width() or 52
+        altura = c.winfo_height() or 52
+        traco = 6
+        cx, cy = largura / 2, altura / 2
+        r = min(cx, cy) - traco / 2 - 1
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, outline=BORDA, width=traco)
         if pct > 0:
             c.create_arc(cx - r, cy - r, cx + r, cy + r,
                         start=90, extent=-(pct / 100 * 360),
-                        outline=VERDE, width=8, style="arc")
-        c.create_text(cx, cy, text=f"{pct:.0f}%", font=("Segoe UI", 10, "bold"),
+                        outline=VERDE, width=traco, style="arc")
+        c.create_text(cx, cy, text=f"{pct:.0f}%", font=("Segoe UI", 9, "bold"),
                       fill=VERDE if pct > 0 else SUB)
 
     # ── Ações rápidas ─────────────────────────────────────────────────────────
@@ -313,22 +325,72 @@ class DashboardScreen(ctk.CTkFrame):
     def _montar_tendencia_30_dias(self):
         card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
                             border_width=1, border_color=BORDA)
-        card.grid(row=2, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 6))
+        card.grid(row=2, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 4))
         icons.rotulo(card, icons.GRAFICO_CIMA, "TENDÊNCIA — ÚLTIMOS 30 DIAS",
                     tam_icone=12, tam_texto=9, negrito=True,
                     cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=16, pady=(8, 2))
-        self._cv_tendencia = tk.Canvas(card, height=30, bg=CARD, highlightthickness=0)
-        self._cv_tendencia.pack(fill="x", padx=16, pady=(0, 8))
+        self._cv_tendencia = tk.Canvas(card, height=16, bg=CARD, highlightthickness=0)
+        self._cv_tendencia.pack(fill="x", padx=16, pady=(0, 6))
+
+    def _montar_ultima_atividade(self):
+        """Ocupa o espaço livre que sobrava no rodapé do Dashboard com algo
+        de verdade (não decoração): o evento mais recente da Central de
+        Auditoria — dá vida à tela sem inventar nenhum dado."""
+        card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
+                            border_width=1, border_color=BORDA, cursor="hand2")
+        card.grid(row=3, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 3))
+        card.bind("<Button-1>", lambda e: self._navegar("auditoria"))
+
+        linha = ctk.CTkFrame(card, fg_color="transparent")
+        linha.pack(fill="x", padx=16, pady=6)
+        linha.bind("<Button-1>", lambda e: self._navegar("auditoria"))
+        linha.grid_columnconfigure(1, weight=1)
+
+        selo = ctk.CTkFrame(linha, fg_color=VERDE_CLARO, corner_radius=8, width=32, height=32)
+        selo.grid(row=0, column=0, rowspan=2, padx=(0, 10))
+        selo.grid_propagate(False)
+        self._lbl_atividade_icone = ctk.CTkLabel(selo, text=icons.ESCUDO, font=icons.fonte(14),
+                                                 text_color=VERDE, fg_color="transparent")
+        self._lbl_atividade_icone.place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(linha, text="ÚLTIMA ATIVIDADE", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=1, sticky="w")
+        self._lbl_atividade_texto = ctk.CTkLabel(
+            linha, text="Nenhuma atividade registrada ainda.",
+            font=ctk.CTkFont("Segoe UI", 11, "bold"), text_color=TEXTO, anchor="w")
+        self._lbl_atividade_texto.grid(row=1, column=1, sticky="w")
+
+        self._lbl_atividade_quando = ctk.CTkLabel(
+            linha, text="", font=ctk.CTkFont("Segoe UI", 9), text_color=SUB)
+        self._lbl_atividade_quando.grid(row=0, column=2, rowspan=2, sticky="e", padx=(8, 0))
+
+        for widget in (card, linha, selo, self._lbl_atividade_icone,
+                      self._lbl_atividade_texto, self._lbl_atividade_quando):
+            widget.bind("<Button-1>", lambda e: self._navegar("auditoria"))
+
+    def _atualizar_ultima_atividade(self):
+        from infrastructure.db import eventos_repo
+        from core.constants import ROTULOS_EVENTO
+        from core.utils import tempo_relativo
+
+        evento = eventos_repo.ultimo_evento(self._db)
+        if not evento:
+            return
+        rotulo = ROTULOS_EVENTO.get(evento["tipo"], evento["tipo"])
+        operador = evento["operador"] or "Não identificado"
+        detalhe = f" — {evento['detalhes']}" if evento["detalhes"] else ""
+        self._lbl_atividade_texto.configure(text=f"{operador}  ·  {rotulo}{detalhe}")
+        self._lbl_atividade_quando.configure(text=tempo_relativo(evento["criado_em"]))
 
     def _montar_acoes_rapidas(self):
         card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
                             border_width=1, border_color=BORDA)
-        card.grid(row=3, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 10))
+        card.grid(row=4, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 4))
         ctk.CTkLabel(card, text="AÇÕES RÁPIDAS",
                      font=ctk.CTkFont("Segoe UI", 9, "bold"),
-                     text_color=SUB).pack(anchor="w", padx=16, pady=(8, 4))
+                     text_color=SUB).pack(anchor="w", padx=16, pady=(6, 3))
         linha = ctk.CTkFrame(card, fg_color="transparent")
-        linha.pack(fill="x", padx=12, pady=(0, 8))
+        linha.pack(fill="x", padx=12, pady=(0, 6))
 
         acoes = [
             (icons.MAIS, "Novo Pedido", "Criar um novo pedido", "pedidos"),
@@ -340,7 +402,7 @@ class DashboardScreen(ctk.CTkFrame):
                                border_width=1, border_color=BORDA, cursor="hand2")
             btn.pack(side="left", fill="x", expand=True, padx=4)
             conteudo = ctk.CTkFrame(btn, fg_color="transparent")
-            conteudo.pack(fill="x", padx=12, pady=7)
+            conteudo.pack(fill="x", padx=12, pady=5)
             selo = ctk.CTkFrame(conteudo, fg_color=VERDE_CLARO, corner_radius=8,
                                 width=32, height=32)
             selo.pack(side="left", padx=(0, 10))
@@ -426,3 +488,5 @@ class DashboardScreen(ctk.CTkFrame):
         else:
             self.lbl_operador_nome.configure(text="—")
             self.lbl_operador_qtd.configure(text="Nenhuma produção este mês")
+
+        self._atualizar_ultima_atividade()

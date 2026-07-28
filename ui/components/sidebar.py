@@ -8,7 +8,8 @@ from __future__ import annotations
 import customtkinter as ctk
 from ui.theme import (SIDEBAR_BG, SIDEBAR_HOVER, SIDEBAR_TEXTO,
                        SIDEBAR_TEXTO_ATIVO, SIDEBAR_ATIVO, BRANCO, VERDE_GLOW)
-from core.constants import APP_NOME, VERSAO
+import datetime
+from core.constants import APP_NOME, VERSAO, AUTOR
 from core import session
 from ui import icons
 
@@ -82,9 +83,12 @@ class Sidebar(ctk.CTkFrame):
                 btn.pack(fill="x", padx=14, pady=2)
                 self._botoes[chave] = btn
 
+        ctk.CTkLabel(self, text=f"© {datetime.date.today().year} {AUTOR}",
+                     font=ctk.CTkFont("Segoe UI", 8),
+                     text_color=SIDEBAR_TEXTO).pack(side="bottom", pady=(0, 2))
         ctk.CTkLabel(self, text=f"v{VERSAO}",
                      font=ctk.CTkFont("Segoe UI", 9),
-                     text_color=SIDEBAR_TEXTO).pack(side="bottom", pady=(0, 10))
+                     text_color=SIDEBAR_TEXTO).pack(side="bottom", pady=(0, 4))
 
         divisor = ctk.CTkFrame(self, fg_color=SIDEBAR_HOVER, height=1, corner_radius=0)
         divisor.pack(side="bottom", fill="x", padx=14, pady=(10, 4))
