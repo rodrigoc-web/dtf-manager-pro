@@ -139,9 +139,12 @@ def executar(modo: ModoExecucao) -> ResultadoProducao:
     altura_coluna  = cm_para_px(config_repo.obter_float(db, "grade_altura_coluna_cm", 40.0))
     largura_rolo   = cm_para_px(config_repo.obter_float(db, "grade_largura_rolo_cm", 57.0))
     espacamento_colunas = cm_para_px(config_repo.obter_float(db, "grade_espacamento_colunas_cm", 2.0))
+    # Default (0.34cm) bate com o GAP_ENTRE_ARTES antigo (40px a 300dpi) --
+    # preserva o visual de quem nunca mexeu nessa configuração nova.
+    espacamento_linhas = cm_para_px(config_repo.obter_float(db, "grade_espacamento_linhas_cm", 0.34))
     folha = montar_folha_combinada(
         artes_profissao, artes_time, num_colunas, largura_coluna, altura_coluna, largura_rolo,
-        gap_colunas=espacamento_colunas)
+        gap_colunas=espacamento_colunas, gap_linhas=espacamento_linhas)
     png      = salvar_png(folha, pasta_lote, lote_id)
     pdf      = salvar_pdf(png, pasta_lote, lote_id)
     try:

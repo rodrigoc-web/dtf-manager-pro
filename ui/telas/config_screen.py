@@ -183,7 +183,9 @@ class ConfigScreen(ctk.CTkFrame):
         ctk.CTkLabel(linha1, text="Largura do rolo (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB, anchor="w").grid(row=0, column=3, sticky="w", padx=(0, 8))
         ctk.CTkLabel(linha1, text="Espaçamento entre colunas (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
-                     text_color=SUB, anchor="w").grid(row=0, column=4, sticky="w")
+                     text_color=SUB, anchor="w").grid(row=0, column=4, sticky="w", padx=(0, 8))
+        ctk.CTkLabel(linha1, text="Espaçamento entre linhas (cm)", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                     text_color=SUB, anchor="w").grid(row=0, column=5, sticky="w")
 
         self._entry_num_colunas = ctk.CTkEntry(linha1, height=32, width=90)
         self._entry_num_colunas.grid(row=1, column=0, sticky="w", padx=(0, 8), pady=(2, 0))
@@ -194,7 +196,9 @@ class ConfigScreen(ctk.CTkFrame):
         self._entry_largura_rolo = ctk.CTkEntry(linha1, height=32, width=90)
         self._entry_largura_rolo.grid(row=1, column=3, sticky="w", padx=(0, 8), pady=(2, 0))
         self._entry_espacamento_colunas = ctk.CTkEntry(linha1, height=32, width=90)
-        self._entry_espacamento_colunas.grid(row=1, column=4, sticky="w", pady=(2, 0))
+        self._entry_espacamento_colunas.grid(row=1, column=4, sticky="w", padx=(0, 8), pady=(2, 0))
+        self._entry_espacamento_linhas = ctk.CTkEntry(linha1, height=32, width=90)
+        self._entry_espacamento_linhas.grid(row=1, column=5, sticky="w", pady=(2, 0))
 
         ctk.CTkButton(card, text="Salvar", height=32, width=90,
                      fg_color=VERDE, hover_color=VERDE_HOVER, text_color=TEXTO_SOBRE_VERDE,
@@ -208,6 +212,7 @@ class ConfigScreen(ctk.CTkFrame):
             altura_coluna = float(self._entry_altura_coluna.get().strip().replace(",", "."))
             largura_rolo = float(self._entry_largura_rolo.get().strip().replace(",", "."))
             espacamento_colunas = float(self._entry_espacamento_colunas.get().strip().replace(",", "."))
+            espacamento_linhas = float(self._entry_espacamento_linhas.get().strip().replace(",", "."))
         except ValueError:
             messagebox.showwarning("Valor inválido",
                 "Nº de colunas deve ser um número inteiro; as larguras/altura/espaçamento, "
@@ -216,9 +221,9 @@ class ConfigScreen(ctk.CTkFrame):
         if num_colunas < 1 or largura_coluna <= 0 or altura_coluna <= 0 or largura_rolo <= 0:
             messagebox.showwarning("Valor inválido", "Todos os valores devem ser maiores que zero.")
             return
-        if espacamento_colunas < 0:
+        if espacamento_colunas < 0 or espacamento_linhas < 0:
             messagebox.showwarning("Valor inválido",
-                "Espaçamento entre colunas não pode ser negativo (0 = colunas encostadas).")
+                "Espaçamento entre colunas/linhas não pode ser negativo (0 = encostadas).")
             return
 
         config_repo.definir(self._db, "grade_num_colunas", str(num_colunas))
@@ -226,6 +231,7 @@ class ConfigScreen(ctk.CTkFrame):
         config_repo.definir(self._db, "grade_altura_coluna_cm", str(altura_coluna))
         config_repo.definir(self._db, "grade_largura_rolo_cm", str(largura_rolo))
         config_repo.definir(self._db, "grade_espacamento_colunas_cm", str(espacamento_colunas))
+        config_repo.definir(self._db, "grade_espacamento_linhas_cm", str(espacamento_linhas))
 
         aviso = ""
         largura_total = num_colunas * largura_coluna + (num_colunas - 1) * espacamento_colunas
@@ -378,6 +384,9 @@ class ConfigScreen(ctk.CTkFrame):
         self._entry_espacamento_colunas.delete(0, "end")
         self._entry_espacamento_colunas.insert(
             0, str(config_repo.obter_float(self._db, "grade_espacamento_colunas_cm", 2.0)))
+        self._entry_espacamento_linhas.delete(0, "end")
+        self._entry_espacamento_linhas.insert(
+            0, str(config_repo.obter_float(self._db, "grade_espacamento_linhas_cm", 0.34)))
 
         estoque_atual = estoque_repo.estoque_atual_metros(self._db)
         self._lbl_estoque_atual.configure(text=f"{estoque_atual:.1f} m em estoque")
