@@ -63,7 +63,7 @@ ALTURA_ALVO = 850
 # monitor -- ficava enorme numa tela de notebook comum (ex.: 1366×768,
 # ocupava quase a tela toda). Agora o tamanho é uma fração da tela do
 # usuário, preservando a mesma proporção do design (720/1000).
-FRACAO_LARGURA_TELA = 0.4   # simples/pequena-média (sem ilustração de fundo)
+FRACAO_LARGURA_TELA = 0.48   # simples/pequena-média (sem ilustração de fundo) -- +20%
 DURACAO_SPLASH_MS = 1600
 
 
@@ -115,8 +115,8 @@ class LoginDialog(ctk.CTkToplevel):
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         w = round(sw * FRACAO_LARGURA_TELA)
         h = round(w * (ALTURA_ALVO / LARGURA_ALVO))
-        w = max(640, min(w, sw - FOLGA_PX))
-        h = max(460, min(h, sh - FOLGA_PX))
+        w = max(768, min(w, sw - FOLGA_PX))   # piso +20% (era 640)
+        h = max(552, min(h, sh - FOLGA_PX))   # piso +20% (era 460)
         self.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
         return w, h
 
@@ -270,7 +270,7 @@ class LoginDialog(ctk.CTkToplevel):
         altura_ideal = fundo_conteudo - topo_janela + margem
 
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        altura_ideal = max(460, min(altura_ideal, sh - 60))
+        altura_ideal = max(552, min(altura_ideal, sh - 60))
         if abs(altura_ideal - self._altura) > 2:
             self._altura = altura_ideal
             x = self.winfo_x()
