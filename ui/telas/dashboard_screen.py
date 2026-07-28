@@ -1,27 +1,47 @@
 """
 ui/telas/dashboard_screen.py — KPIs do dia (próximo lote, pedidos pendentes,
-produções hoje, modelos cadastrados) + análise (meta do dia, mais/menos
-produzidos, operador do mês) + ações rápidas.
+produções hoje, modelos cadastrados) + meta do dia + atividade recente +
+gráfico de produção dos últimos dias + ranking (mais/menos produzidos,
+operador do mês) + ações rápidas.
 
-Visual calibrado pelo mockup de referência (barra superior com busca/sino/
-data, cards com badge de tendência e seta) — mas todo número mostrado é
-real, calculado do banco. Onde uma comparação não tem dado histórico
-suficiente pra ser honesta (ex.: modelos cadastrados vs mês passado sem
-snapshot antigo), o badge de tendência simplesmente não aparece em vez de
-mostrar um percentual inventado.
+Visual fiel ao mockup de referência do usuário (dashboard2.png, deixado na
+pasta do projeto): barra superior com busca/sino/data, cards com badge de
+tendência e seta, linha central com Meta do dia / Atividade Recente /
+Gráfico de produção lado a lado. Mas todo número mostrado é real, calculado
+do banco — onde uma comparação não tem dado histórico suficiente pra ser
+honesta (ex.: modelos cadastrados vs mês passado sem snapshot antigo), o
+badge de tendência simplesmente não aparece em vez de mostrar um percentual
+inventado.
 """
 from __future__ import annotations
 import datetime
 import tkinter as tk
 import customtkinter as ctk
-from ui.theme import CARD, BORDA, VERDE, VERDE_CLARO, TEXTO, SUB, FUNDO, BRANCO, AMARELO, AMARELO_BG
+from ui.theme import (CARD, BORDA, VERDE, VERDE_CLARO, TEXTO, SUB, FUNDO, BRANCO,
+                      AMARELO, AMARELO_BG, VERMELHO, VERMELHO_BG, CATEGORICA)
 from core.constants import META_DIA
 from ui import icons
 
 TOP_N = 3   # quantos itens mostrar em "mais/menos produzidos"
+DIAS_GRAFICO = 7
+LIMITE_ATIVIDADE = 5   # quantos eventos recentes listar no card "Atividade Recente"
 
 _MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
           "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+# (ícone, cor) por tipo de evento — mesma linguagem visual do card "Atividade
+# Recente" do mockup (cada tipo de evento com um selo colorido próprio).
+_ICONE_COR_EVENTO = {
+    "LOGIN":           (icons.CONTATO, CATEGORICA[0]),
+    "PEDIDO_CRIADO":   (icons.CLIPBOARD, VERDE),
+    "PEDIDO_REMOVIDO": (icons.LIXEIRA, VERMELHO),
+    "MODELO_CRIADO":   (icons.CAMADAS, CATEGORICA[6]),
+    "MODELO_EDITADO":  (icons.CAMADAS, CATEGORICA[6]),
+    "MODELO_REMOVIDO": (icons.LIXEIRA, VERMELHO),
+    "PRODUCAO_GERADA": (icons.IMPRESSORA, VERDE),
+    "BACKUP":          (icons.SALVAR, SUB),
+}
+_ICONE_COR_PADRAO = (icons.ESCUDO, SUB)
 
 
 def _variacao_pct(hoje: int, ontem: int) -> tuple[str, str] | None:
@@ -61,9 +81,8 @@ class DashboardScreen(ctk.CTkFrame):
             "modelos":   self._card_kpi(0, 3, icons.CAMADAS, "MODELOS CADASTRADOS", "modelos"),
         }
 
-        self._montar_analytics()
-        self._montar_tendencia_30_dias()
-        self._montar_ultima_atividade()
+        self._montar_linha_central()
+        self._montar_ranking_mensal()
         self._montar_acoes_rapidas()
         self.atualizar()
 
@@ -109,9 +128,12 @@ class DashboardScreen(ctk.CTkFrame):
         titulos.grid(row=0, column=1, rowspan=2, sticky="w")
         ctk.CTkLabel(titulos, text="Dashboard", font=ctk.CTkFont("Segoe UI", 18, "bold"),
                      text_color=TEXTO, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(titulos, text="Visão geral da produção",
-                     font=ctk.CTkFont("Segoe UI", 10), text_color=SUB,
-                     anchor="w").pack(anchor="w")
+        sub = ctk.CTkFrame(titulos, fg_color="transparent")
+        sub.pack(anchor="w")
+        ctk.CTkLabel(sub, text="Visão geral da ", font=ctk.CTkFont("Segoe UI", 10),
+                     text_color=SUB).pack(side="left")
+        ctk.CTkLabel(sub, text="produção", font=ctk.CTkFont("Segoe UI", 10, "bold"),
+                     text_color=VERDE).pack(side="left")
 
         direita = ctk.CTkFrame(topo, fg_color="transparent")
         direita.grid(row=0, column=2, rowspan=2, sticky="e")
@@ -229,38 +251,217 @@ class DashboardScreen(ctk.CTkFrame):
         for (x0, y0), (x1, y1) in zip(pontos, pontos[1:]):
             canvas.create_line(x0, y0, x1, y1, fill=VERDE, width=2, smooth=True)
 
-    # ── Linha de análise: meta do dia, mais/menos produzidos, operador do mês ──
+    # ── Linha central: Meta do dia / Atividade Recente / Produção (período) ──
 
-    def _montar_analytics(self):
+    def _montar_linha_central(self):
         linha = ctk.CTkFrame(self._corpo, fg_color="transparent")
         linha.grid(row=1, column=0, columnspan=4, sticky="nsew", padx=16, pady=(0, 4))
-        linha.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        linha.grid_columnconfigure(0, weight=3)
+        linha.grid_columnconfigure(1, weight=4)
+        linha.grid_columnconfigure(2, weight=4)
         linha.grid_rowconfigure(0, weight=1)
 
-        # Meta do dia
-        meta = ctk.CTkFrame(linha, fg_color=CARD, corner_radius=14,
+        self._montar_meta_dia(linha)
+        self._montar_atividade_recente(linha)
+        self._montar_producao_periodo(linha)
+
+    def _montar_meta_dia(self, master):
+        meta = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
                             border_width=1, border_color=BORDA)
         meta.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         icons.rotulo(meta, icons.BANDEIRA, "META DO DIA", tam_icone=12, tam_texto=10,
-                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
-        self._cv = tk.Canvas(meta, width=38, height=38, bg=CARD, highlightthickness=0)
-        self._cv.pack(pady=(4, 2))
+                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(10, 2))
+        self._cv = tk.Canvas(meta, width=90, height=90, bg=CARD, highlightthickness=0)
+        self._cv.pack(pady=(6, 4))
         self.lbl_meta_sub = ctk.CTkLabel(meta, text=f"0 de {META_DIA}",
                                          font=ctk.CTkFont("Segoe UI", 10),
                                          text_color=SUB)
-        self.lbl_meta_sub.pack(pady=(0, 2))
-        ctk.CTkButton(meta, text="Ver histórico  →", height=22,
+        self.lbl_meta_sub.pack()
+        ctk.CTkLabel(meta, text="peças produzidas", font=ctk.CTkFont("Segoe UI", 9),
+                     text_color=SUB).pack(pady=(0, 8))
+
+        divisor = ctk.CTkFrame(meta, fg_color=BORDA, height=1, corner_radius=0)
+        divisor.pack(fill="x", padx=14)
+        bloco_faltam = ctk.CTkFrame(meta, fg_color="transparent")
+        bloco_faltam.pack(fill="x", padx=14, pady=(8, 4))
+        ctk.CTkLabel(bloco_faltam, text="Faltam para concluir", font=ctk.CTkFont("Segoe UI", 9),
+                     text_color=SUB, anchor="w").pack(anchor="w")
+        self._lbl_faltam = ctk.CTkLabel(bloco_faltam, text=f"{META_DIA} peças",
+                                        font=ctk.CTkFont("Segoe UI", 13, "bold"), text_color=TEXTO)
+        self._lbl_faltam.pack(anchor="w")
+
+        ctk.CTkButton(meta, text=" Ver detalhes da meta  →", height=26,
                      fg_color="transparent", text_color=VERDE, hover_color=VERDE_CLARO,
                      font=ctk.CTkFont("Segoe UI", 9),
-                     command=lambda: self._navegar("historico")).pack(pady=(0, 6))
+                     command=lambda: self._navegar("historico")).pack(pady=(4, 10))
 
-        self._corpo_mais  = self._card_lista(linha, 1, icons.GRAFICO_CIMA, "MAIS PRODUZIDOS")
-        self._corpo_menos = self._card_lista(linha, 2, icons.SETA_BAIXO, "MENOS PRODUZIDOS")
+    def _montar_atividade_recente(self, master):
+        card = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
+                            border_width=1, border_color=BORDA)
+        card.grid(row=0, column=1, sticky="nsew", padx=8)
 
-        # Operador do mês
+        cabecalho = ctk.CTkFrame(card, fg_color="transparent")
+        cabecalho.pack(fill="x", padx=14, pady=(10, 4))
+        icons.rotulo(cabecalho, icons.HISTORICO, "ATIVIDADE RECENTE", tam_icone=12, tam_texto=10,
+                    negrito=True, cor_icone=SUB, cor_texto=SUB).pack(side="left")
+        ctk.CTkButton(cabecalho, text="Ver todas  →", height=18, width=70,
+                     fg_color="transparent", text_color=VERDE, hover_color=CARD,
+                     font=ctk.CTkFont("Segoe UI", 9),
+                     command=lambda: self._navegar("auditoria")).pack(side="right")
+
+        self._lista_atividade = ctk.CTkFrame(card, fg_color="transparent")
+        self._lista_atividade.pack(fill="both", expand=True, padx=6, pady=(0, 8))
+
+    def _atualizar_atividade_recente(self):
+        from infrastructure.db import eventos_repo
+        from core.constants import ROTULOS_EVENTO
+        from core.utils import tempo_relativo
+
+        for w in self._lista_atividade.winfo_children():
+            w.destroy()
+
+        eventos = eventos_repo.listar(self._db, limite=LIMITE_ATIVIDADE)
+        if not eventos:
+            ctk.CTkLabel(self._lista_atividade, text="Nenhuma atividade registrada ainda.",
+                         font=ctk.CTkFont("Segoe UI", 10), text_color=SUB).pack(
+                anchor="w", padx=8, pady=8)
+            return
+
+        for i, evento in enumerate(eventos):
+            ico, cor = _ICONE_COR_EVENTO.get(evento["tipo"], _ICONE_COR_PADRAO)
+            rotulo = ROTULOS_EVENTO.get(evento["tipo"], evento["tipo"])
+            operador = evento["operador"] or "Não identificado"
+
+            linha = ctk.CTkFrame(self._lista_atividade, fg_color="transparent", cursor="hand2")
+            linha.pack(fill="x", padx=8, pady=3)
+            linha.bind("<Button-1>", lambda e: self._navegar("auditoria"))
+
+            selo = ctk.CTkFrame(linha, fg_color=cor, corner_radius=13, width=26, height=26)
+            selo.pack(side="left", padx=(0, 8))
+            selo.pack_propagate(False)
+            ctk.CTkLabel(selo, text=ico, font=icons.fonte(11), text_color=BRANCO,
+                        fg_color="transparent").place(relx=0.5, rely=0.5, anchor="center")
+
+            textos = ctk.CTkFrame(linha, fg_color="transparent")
+            textos.pack(side="left", fill="x", expand=True)
+            ctk.CTkLabel(textos, text=rotulo, font=ctk.CTkFont("Segoe UI", 10, "bold"),
+                        text_color=TEXTO, anchor="w").pack(anchor="w")
+            detalhe = evento["detalhes"] or operador
+            ctk.CTkLabel(textos, text=detalhe, font=ctk.CTkFont("Segoe UI", 8),
+                        text_color=SUB, anchor="w", wraplength=220,
+                        justify="left").pack(anchor="w")
+
+            ctk.CTkLabel(linha, text=tempo_relativo(evento["criado_em"]),
+                        font=ctk.CTkFont("Segoe UI", 8), text_color=SUB).pack(side="right", padx=(4, 0))
+
+            for widget in (linha, selo, textos):
+                widget.bind("<Button-1>", lambda e: self._navegar("auditoria"))
+            if i < len(eventos) - 1:
+                ctk.CTkFrame(self._lista_atividade, fg_color=BORDA, height=1,
+                            corner_radius=0).pack(fill="x", padx=8)
+
+    def _montar_producao_periodo(self, master):
+        card = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
+                            border_width=1, border_color=BORDA)
+        card.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+
+        cabecalho = ctk.CTkFrame(card, fg_color="transparent")
+        cabecalho.pack(fill="x", padx=14, pady=(10, 2))
+        icons.rotulo(cabecalho, icons.GRAFICO_CIMA, f"PRODUÇÃO — ÚLTIMOS {DIAS_GRAFICO} DIAS",
+                    tam_icone=12, tam_texto=10, negrito=True,
+                    cor_icone=SUB, cor_texto=SUB).pack(side="left")
+
+        self._cv_producao = tk.Canvas(card, height=110, bg=CARD, highlightthickness=0)
+        self._cv_producao.pack(fill="x", padx=10, pady=(2, 6))
+
+        divisor = ctk.CTkFrame(card, fg_color=BORDA, height=1, corner_radius=0)
+        divisor.pack(fill="x", padx=14)
+        rodape = ctk.CTkFrame(card, fg_color="transparent")
+        rodape.pack(fill="x", padx=14, pady=8)
+        esquerda = ctk.CTkFrame(rodape, fg_color="transparent")
+        esquerda.pack(side="left")
+        ctk.CTkLabel(esquerda, text="Total produzido", font=ctk.CTkFont("Segoe UI", 9),
+                     text_color=SUB, anchor="w").pack(anchor="w")
+        self._lbl_total_periodo = ctk.CTkLabel(esquerda, text="0 peças",
+                                               font=ctk.CTkFont("Segoe UI", 15, "bold"),
+                                               text_color=TEXTO, anchor="w")
+        self._lbl_total_periodo.pack(anchor="w")
+        self._lbl_trend_periodo = ctk.CTkLabel(rodape, text="", font=ctk.CTkFont("Segoe UI", 9, "bold"),
+                                               text_color=VERDE)
+        self._lbl_trend_periodo.pack(side="right", anchor="s", pady=(0, 2))
+
+    def _desenhar_grafico_producao(self, valores: list[int]):
+        """Barras de verdade (não sparkline fina) com rótulo do dia embaixo
+        e algumas linhas de grade horizontais — mesma linguagem visual do
+        card "Produção" do mockup. Zero produção ainda desenha as barras
+        vazias mesmo assim (diferente da sparkline dos KPIs): aqui já tem
+        rótulo de eixo, então uma grade "zerada" não engana ninguém."""
+        c = self._cv_producao
+        c.delete("all")
+        c.update_idletasks()
+        w = max(c.winfo_width(), 100)
+        h = c.winfo_height() or 110
+        n = len(valores)
+        if n == 0:
+            return
+
+        margem_baixo = 16
+        margem_topo = 6
+        area_h = h - margem_baixo - margem_topo
+        maximo = max(valores) if max(valores) > 0 else 1
+
+        # grade horizontal (3 linhas leves) — só decoração de referência
+        for frac in (0.0, 0.5, 1.0):
+            y = margem_topo + area_h * (1 - frac)
+            c.create_line(0, y, w, y, fill=BORDA, width=1)
+
+        hoje = datetime.date.today()
+        largura_slot = w / n
+        largura_barra = largura_slot * 0.5
+        for i, v in enumerate(valores):
+            cx = (i + 0.5) * largura_slot
+            altura_barra = (v / maximo) * area_h if maximo else 0
+            y0 = margem_topo + area_h - altura_barra
+            y1 = margem_topo + area_h
+            cor = VERDE if v > 0 else BORDA
+            if altura_barra > 0:
+                c.create_rectangle(cx - largura_barra / 2, y0, cx + largura_barra / 2, y1,
+                                   fill=cor, outline="")
+            dia = hoje - datetime.timedelta(days=(n - 1 - i))
+            c.create_text(cx, h - margem_baixo / 2 + 2, text=f"{dia.day:02d}/{dia.month:02d}",
+                         font=("Segoe UI", 7), fill=SUB)
+
+    def _atualizar_producao_periodo(self):
+        from infrastructure.db import pedidos_repo
+        valores = pedidos_repo.producao_ultimos_dias(self._db, DIAS_GRAFICO)
+        self.after(50, lambda: self._desenhar_grafico_producao(valores))
+
+        total = sum(valores)
+        self._lbl_total_periodo.configure(text=f"{total} peça{'s' if total != 1 else ''}")
+
+        # período anterior de mesmo tamanho, pra comparar (ex.: 7 dias vs os 7 anteriores)
+        anterior = pedidos_repo.producao_periodo_anterior(self._db, DIAS_GRAFICO)
+        variacao = _variacao_pct(total, sum(anterior))
+        if variacao:
+            seta, texto = variacao
+            self._lbl_trend_periodo.configure(text=f"{seta} {texto}")
+        else:
+            self._lbl_trend_periodo.configure(text="")
+
+    # ── Ranking mensal: mais/menos produzidos, operador do mês ──────────────
+
+    def _montar_ranking_mensal(self):
+        linha = ctk.CTkFrame(self._corpo, fg_color="transparent")
+        linha.grid(row=2, column=0, columnspan=4, sticky="nsew", padx=16, pady=(0, 4))
+        linha.grid_columnconfigure((0, 1, 2), weight=1)
+        linha.grid_rowconfigure(0, weight=1)
+
+        self._corpo_mais  = self._card_lista(linha, 0, icons.GRAFICO_CIMA, "MAIS PRODUZIDOS")
+        self._corpo_menos = self._card_lista(linha, 1, icons.SETA_BAIXO, "MENOS PRODUZIDOS")
+
         op = ctk.CTkFrame(linha, fg_color=CARD, corner_radius=14,
                           border_width=1, border_color=BORDA)
-        op.grid(row=0, column=3, sticky="nsew", padx=(8, 0))
+        op.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
         icons.rotulo(op, icons.ESTRELA, "OPERADOR DO MÊS", tam_icone=12, tam_texto=10,
                     negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
         self.lbl_operador_nome = ctk.CTkLabel(op, text="—",
@@ -275,7 +476,7 @@ class DashboardScreen(ctk.CTkFrame):
     def _card_lista(self, master, col, icone_char, titulo) -> ctk.CTkFrame:
         c = ctk.CTkFrame(master, fg_color=CARD, corner_radius=14,
                          border_width=1, border_color=BORDA)
-        c.grid(row=0, column=col, sticky="nsew", padx=8)
+        c.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 8 if col < 2 else 0))
         icons.rotulo(c, icone_char, titulo, tam_icone=12, tam_texto=10,
                     negrito=True, cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=14, pady=(7, 1))
         corpo = ctk.CTkFrame(c, fg_color="transparent")
@@ -298,18 +499,15 @@ class DashboardScreen(ctk.CTkFrame):
                          text_color=VERDE).pack(side="right")
 
     def _desenhar_circulo(self, pct: float):
-        # Coordenadas calibradas pro canvas 52x52 (foi reduzido de 64x64 na
-        # rodada de compactação do Dashboard) -- o desenho ficou com as
-        # coordenadas ANTIGAS (raio 24 + traço 8, centro 32,32), que não
-        # cabem mais num canvas de 52px: a borda do círculo saía do canvas e
-        # cortava. width/height() reais do canvas, não valores fixos, pra
-        # nunca mais dessincronizar se o tamanho mudar de novo.
+        # Coordenadas calculadas a partir do tamanho REAL do canvas — nunca
+        # mais fixas (já causou um círculo cortado numa rodada anterior,
+        # quando o canvas mudou de tamanho e o desenho não acompanhou).
         c = self._cv
         c.delete("all")
         c.update_idletasks()
-        largura = c.winfo_width() or 52
-        altura = c.winfo_height() or 52
-        traco = 6
+        largura = c.winfo_width() or 90
+        altura = c.winfo_height() or 90
+        traco = 9
         cx, cy = largura / 2, altura / 2
         r = min(cx, cy) - traco / 2 - 1
         c.create_oval(cx - r, cy - r, cx + r, cy + r, outline=BORDA, width=traco)
@@ -317,75 +515,15 @@ class DashboardScreen(ctk.CTkFrame):
             c.create_arc(cx - r, cy - r, cx + r, cy + r,
                         start=90, extent=-(pct / 100 * 360),
                         outline=VERDE, width=traco, style="arc")
-        c.create_text(cx, cy, text=f"{pct:.0f}%", font=("Segoe UI", 9, "bold"),
+        c.create_text(cx, cy, text=f"{pct:.0f}%", font=("Segoe UI", 16, "bold"),
                       fill=VERDE if pct > 0 else SUB)
 
     # ── Ações rápidas ─────────────────────────────────────────────────────────
 
-    def _montar_tendencia_30_dias(self):
-        card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
-                            border_width=1, border_color=BORDA)
-        card.grid(row=2, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 4))
-        icons.rotulo(card, icons.GRAFICO_CIMA, "TENDÊNCIA — ÚLTIMOS 30 DIAS",
-                    tam_icone=12, tam_texto=9, negrito=True,
-                    cor_icone=SUB, cor_texto=SUB).pack(anchor="w", padx=16, pady=(8, 2))
-        self._cv_tendencia = tk.Canvas(card, height=16, bg=CARD, highlightthickness=0)
-        self._cv_tendencia.pack(fill="x", padx=16, pady=(0, 6))
-
-    def _montar_ultima_atividade(self):
-        """Ocupa o espaço livre que sobrava no rodapé do Dashboard com algo
-        de verdade (não decoração): o evento mais recente da Central de
-        Auditoria — dá vida à tela sem inventar nenhum dado."""
-        card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
-                            border_width=1, border_color=BORDA, cursor="hand2")
-        card.grid(row=3, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 3))
-        card.bind("<Button-1>", lambda e: self._navegar("auditoria"))
-
-        linha = ctk.CTkFrame(card, fg_color="transparent")
-        linha.pack(fill="x", padx=16, pady=6)
-        linha.bind("<Button-1>", lambda e: self._navegar("auditoria"))
-        linha.grid_columnconfigure(1, weight=1)
-
-        selo = ctk.CTkFrame(linha, fg_color=VERDE_CLARO, corner_radius=8, width=32, height=32)
-        selo.grid(row=0, column=0, rowspan=2, padx=(0, 10))
-        selo.grid_propagate(False)
-        self._lbl_atividade_icone = ctk.CTkLabel(selo, text=icons.ESCUDO, font=icons.fonte(14),
-                                                 text_color=VERDE, fg_color="transparent")
-        self._lbl_atividade_icone.place(relx=0.5, rely=0.5, anchor="center")
-
-        ctk.CTkLabel(linha, text="ÚLTIMA ATIVIDADE", font=ctk.CTkFont("Segoe UI", 9, "bold"),
-                     text_color=SUB, anchor="w").grid(row=0, column=1, sticky="w")
-        self._lbl_atividade_texto = ctk.CTkLabel(
-            linha, text="Nenhuma atividade registrada ainda.",
-            font=ctk.CTkFont("Segoe UI", 11, "bold"), text_color=TEXTO, anchor="w")
-        self._lbl_atividade_texto.grid(row=1, column=1, sticky="w")
-
-        self._lbl_atividade_quando = ctk.CTkLabel(
-            linha, text="", font=ctk.CTkFont("Segoe UI", 9), text_color=SUB)
-        self._lbl_atividade_quando.grid(row=0, column=2, rowspan=2, sticky="e", padx=(8, 0))
-
-        for widget in (card, linha, selo, self._lbl_atividade_icone,
-                      self._lbl_atividade_texto, self._lbl_atividade_quando):
-            widget.bind("<Button-1>", lambda e: self._navegar("auditoria"))
-
-    def _atualizar_ultima_atividade(self):
-        from infrastructure.db import eventos_repo
-        from core.constants import ROTULOS_EVENTO
-        from core.utils import tempo_relativo
-
-        evento = eventos_repo.ultimo_evento(self._db)
-        if not evento:
-            return
-        rotulo = ROTULOS_EVENTO.get(evento["tipo"], evento["tipo"])
-        operador = evento["operador"] or "Não identificado"
-        detalhe = f" — {evento['detalhes']}" if evento["detalhes"] else ""
-        self._lbl_atividade_texto.configure(text=f"{operador}  ·  {rotulo}{detalhe}")
-        self._lbl_atividade_quando.configure(text=tempo_relativo(evento["criado_em"]))
-
     def _montar_acoes_rapidas(self):
         card = ctk.CTkFrame(self._corpo, fg_color=CARD, corner_radius=14,
                             border_width=1, border_color=BORDA)
-        card.grid(row=4, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 4))
+        card.grid(row=3, column=0, columnspan=4, sticky="ew", padx=16, pady=(0, 4))
         ctk.CTkLabel(card, text="AÇÕES RÁPIDAS",
                      font=ctk.CTkFont("Segoe UI", 9, "bold"),
                      text_color=SUB).pack(anchor="w", padx=16, pady=(6, 3))
@@ -396,6 +534,8 @@ class DashboardScreen(ctk.CTkFrame):
             (icons.MAIS, "Novo Pedido", "Criar um novo pedido", "pedidos"),
             (icons.CAMADAS, "Novo Modelo", "Cadastrar novo modelo", "modelos"),
             (icons.HISTORICO, "Ver Histórico", "Acessar produções passadas", "historico"),
+            (icons.ESCUDO, "Ver Auditoria", "Quem fez o quê e quando", "auditoria"),
+            (icons.ENGRENAGEM, "Configurações", "Ajustar grade e metas", "config"),
         ]
         for ico, titulo, sub, destino in acoes:
             btn = ctk.CTkFrame(linha, fg_color=FUNDO, corner_radius=10,
@@ -464,8 +604,6 @@ class DashboardScreen(ctk.CTkFrame):
         if spark is not None:
             self.after(50, lambda: self._desenhar_sparkline(
                 spark, pedidos_repo.producao_ultimos_dias(self._db, 7)))
-        self.after(50, lambda: self._desenhar_sparkline(
-            self._cv_tendencia, pedidos_repo.producao_ultimos_dias(self._db, 30), h=36))
 
         total_modelos = len(modelos_repo.listar_modelos(self._db))
         novos_no_mes = modelos_repo.contar_criados_no_mes(self._db)
@@ -475,6 +613,11 @@ class DashboardScreen(ctk.CTkFrame):
         pct = min(produzidos_hoje / meta_dia * 100, 100) if produzidos_hoje > 0 else 0
         self._desenhar_circulo(pct)
         self.lbl_meta_sub.configure(text=f"{produzidos_hoje} de {meta_dia}")
+        faltam = max(0, meta_dia - produzidos_hoje)
+        self._lbl_faltam.configure(text=f"{faltam} peça{'s' if faltam != 1 else ''}"
+                                        if faltam > 0 else "Meta batida! 🎉")
+
+        self._atualizar_producao_periodo()
 
         ranking = pedidos_repo.contagem_por_profissao(self._db)
         self._preencher_lista(self._corpo_mais, ranking[:TOP_N])
@@ -489,4 +632,4 @@ class DashboardScreen(ctk.CTkFrame):
             self.lbl_operador_nome.configure(text="—")
             self.lbl_operador_qtd.configure(text="Nenhuma produção este mês")
 
-        self._atualizar_ultima_atividade()
+        self._atualizar_atividade_recente()

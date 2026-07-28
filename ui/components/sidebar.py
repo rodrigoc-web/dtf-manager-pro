@@ -47,22 +47,21 @@ class Sidebar(ctk.CTkFrame):
         self._img_ativo:   dict[str, "ctk.CTkImage"] = {}
         self._ativo: str | None = None
 
+        # Logo grande, centralizada e empilhada (ícone em cima, wordmark
+        # embaixo) -- igual ao mockup de referência do usuário; a versão
+        # anterior (ícone pequeno + texto ao lado) não era fiel ao proposto.
         cabecalho = ctk.CTkFrame(self, fg_color="transparent")
-        cabecalho.pack(fill="x", pady=(18, 14), padx=18)
+        cabecalho.pack(fill="x", pady=(24, 18), padx=18)
 
         icone = self._carregar_icone()
-        linha_topo = ctk.CTkFrame(cabecalho, fg_color="transparent")
-        linha_topo.pack(anchor="w")
         if icone:
-            ctk.CTkLabel(linha_topo, image=icone, text="").pack(side="left", padx=(0, 8))
-        textos = ctk.CTkFrame(linha_topo, fg_color="transparent")
-        textos.pack(side="left")
-        ctk.CTkLabel(textos, text="DTF MANAGER",
-                     font=ctk.CTkFont("Segoe UI", 14, "bold"),
-                     text_color=BRANCO, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(textos, text="PRO",
-                     font=ctk.CTkFont("Segoe UI", 10, "bold"),
-                     text_color=SIDEBAR_ATIVO, anchor="w").pack(anchor="w")
+            ctk.CTkLabel(cabecalho, image=icone, text="").pack(pady=(0, 10))
+        ctk.CTkLabel(cabecalho, text="DTF MANAGER",
+                     font=ctk.CTkFont("Segoe UI", 17, "bold"),
+                     text_color=BRANCO).pack()
+        ctk.CTkLabel(cabecalho, text="PRO",
+                     font=ctk.CTkFont("Segoe UI", 11, "bold"),
+                     text_color=SIDEBAR_ATIVO).pack()
 
         for nome_secao, itens in SECOES:
             ctk.CTkLabel(self, text=nome_secao, font=ctk.CTkFont("Segoe UI", 9, "bold"),
@@ -93,22 +92,41 @@ class Sidebar(ctk.CTkFrame):
         divisor = ctk.CTkFrame(self, fg_color=SIDEBAR_HOVER, height=1, corner_radius=0)
         divisor.pack(side="bottom", fill="x", padx=14, pady=(10, 4))
 
+        # Avatar (iniciais) + nome + trocar operador — igual ao rodapé do
+        # mockup (ali era "AD / Administrator / e-mail"; aqui não há e-mail,
+        # então o link "Trocar operador" ocupa esse lugar).
         bloco_operador = ctk.CTkFrame(self, fg_color="transparent")
-        bloco_operador.pack(side="bottom", fill="x", padx=18, pady=(4, 0))
+        bloco_operador.pack(side="bottom", fill="x", padx=14, pady=(4, 2))
+        linha_op = ctk.CTkFrame(bloco_operador, fg_color="transparent")
+        linha_op.pack(fill="x")
+
+        avatar = ctk.CTkFrame(linha_op, fg_color=SIDEBAR_HOVER, corner_radius=18,
+                              width=36, height=36)
+        avatar.pack(side="left", padx=(4, 10))
+        avatar.pack_propagate(False)
+        self._lbl_avatar = ctk.CTkLabel(avatar, text="", font=ctk.CTkFont("Segoe UI", 12, "bold"),
+                                        text_color=BRANCO)
+        self._lbl_avatar.place(relx=0.5, rely=0.5, anchor="center")
+
+        textos_op = ctk.CTkFrame(linha_op, fg_color="transparent")
+        textos_op.pack(side="left", fill="x", expand=True)
         self._lbl_operador = ctk.CTkLabel(
-            bloco_operador, text="", font=ctk.CTkFont("Segoe UI", 11, "bold"),
+            textos_op, text="", font=ctk.CTkFont("Segoe UI", 12, "bold"),
             text_color=BRANCO, anchor="w")
         self._lbl_operador.pack(anchor="w")
         ctk.CTkButton(
-            bloco_operador, text="Trocar operador", height=20,
+            textos_op, text="Trocar operador", height=16,
             font=ctk.CTkFont("Segoe UI", 9), fg_color="transparent",
             text_color=VERDE_GLOW, hover_color=SIDEBAR_HOVER, anchor="w",
-            command=self._trocar_operador).pack(anchor="w", pady=(0, 6))
+            command=self._trocar_operador).pack(anchor="w")
         self.atualizar_operador()
 
     def atualizar_operador(self):
         nome = session.operador_atual or "Não identificado"
         self._lbl_operador.configure(text=nome)
+        partes = nome.split() if nome and nome != "Não identificado" else []
+        iniciais = "".join(p[0] for p in partes[:2]).upper() if partes else "?"
+        self._lbl_avatar.configure(text=iniciais)
 
     def _trocar_operador(self):
         if self._on_trocar_operador:
@@ -130,7 +148,7 @@ class Sidebar(ctk.CTkFrame):
             if not caminho.exists():
                 return None
             img = Image.open(caminho)
-            return ctk.CTkImage(light_image=img, dark_image=img, size=(44, 44))
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(84, 84))
         except Exception:
             return None
 

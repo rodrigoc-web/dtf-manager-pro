@@ -233,6 +233,28 @@ def producao_ultimos_dias(db_path: str, dias: int = 7) -> list[int]:
         conn.close()
 
 
+def producao_periodo_anterior(db_path: str, dias: int = 7) -> list[int]:
+    """Mesma coisa que `producao_ultimos_dias`, mas pro período de `dias`
+    dias ANTERIOR ao mais recente (ex.: dias=7 -> dos 8 aos 14 dias atrás) —
+    dá a base de comparação real pro badge de tendência do card "Produção",
+    igual ao "vs últimos 7 dias" do mockup, sem inventar percentual."""
+    import datetime
+    hoje = datetime.date.today()
+    conn = get_connection(db_path)
+    try:
+        totais = []
+        for i in range(2 * dias - 1, dias - 1, -1):
+            data = (hoje - datetime.timedelta(days=i)).strftime("%d/%m/%Y")
+            linha = conn.execute(
+                "SELECT COALESCE(SUM(quantidade), 0) AS total FROM pedidos "
+                "WHERE status = ? AND produzido_em LIKE ?",
+                (Status.PRODUZIDO.value, f"{data}%")).fetchone()
+            totais.append(linha["total"])
+        return totais
+    finally:
+        conn.close()
+
+
 def variacao_hoje_ontem(db_path: str, campo_data: str) -> tuple[int, int]:
     """
     (quantidade hoje, quantidade ontem) somando `quantidade` dos pedidos cujo
