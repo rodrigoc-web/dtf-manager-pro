@@ -34,8 +34,7 @@ from tkinter import messagebox
 
 from core import session
 from ui.theme import (SIDEBAR_BG, SIDEBAR_TEXTO, SIDEBAR_HOVER, CARD_ESCURO, BORDA_ESCURA,
-                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, VERDE_PRESSIONADO, VERDE_ESCURO,
-                      TEXTO_SOBRE_VERDE)
+                      BRANCO, VERDE_GLOW, VERDE, VERDE_HOVER, VERDE_PRESSIONADO, VERDE_ESCURO)
 from ui import icons
 
 
@@ -47,9 +46,9 @@ def _clarear(cor_hex: str, alpha: float) -> str:
     return f"#{r:02X}{g:02X}{b:02X}"
 
 RECURSOS = [
-    (icons.ESCUDO, "Auditoria completa", "Todas as ações são\nregistradas"),
-    (icons.GRAFICO_CIMA, "Histórico por operador", "Consulte atividades e\nproduções realizadas"),
-    (icons.ALVO, "Produção rastreável", "Mais controle e eficiência\nno seu dia a dia"),
+    ("login_icon_auditoria.png", "Auditoria completa", "Todas as ações são\nregistradas"),
+    ("login_icon_historico.png", "Histórico por operador", "Consulte atividades e\nproduções realizadas"),
+    ("login_icon_producao.png", "Produção rastreável", "Mais controle e eficiência\nno seu dia a dia"),
 ]
 
 LARGURA_ALVO = 1000
@@ -337,10 +336,15 @@ class LoginDialog(ctk.CTkToplevel):
         largura_total = largura_icone + espaco + largura_texto
         x_icone = (w - largura_total) // 2
         x_texto = x_icone + largura_icone + espaco
+        # Branco, não TEXTO_SOBRE_VERDE (escuro) -- o asset de referência do
+        # usuário ("icon botao entrar.png") mostra texto branco sobre esse
+        # gradiente específico; diferente dos outros botões verdes do app
+        # (fundo chapado no lima vibrante, aí sim precisa de texto escuro),
+        # esse gradiente é mais escuro na média e o branco tem contraste bom.
         draw.text((x_icone, h // 2), icons.ENTRAR, font=fonte_icone,
-                  fill=TEXTO_SOBRE_VERDE, anchor="lm")
+                  fill=BRANCO, anchor="lm")
         draw.text((x_texto, h // 2), texto, font=fonte_texto,
-                  fill=TEXTO_SOBRE_VERDE, anchor="lm")
+                  fill=BRANCO, anchor="lm")
 
         saida = saida.resize((largura, altura), Image.LANCZOS)
         return ctk.CTkImage(light_image=saida, dark_image=saida, size=(largura, altura))
@@ -348,17 +352,30 @@ class LoginDialog(ctk.CTkToplevel):
     def _montar_recursos(self, master):
         linha = ctk.CTkFrame(master, fg_color="transparent")
         linha.pack(fill="x")
-        for col, (ico, titulo, desc) in enumerate(RECURSOS):
+        for col, (arquivo_icone, titulo, desc) in enumerate(RECURSOS):
             linha.grid_columnconfigure(col, weight=1)
             bloco = ctk.CTkFrame(linha, fg_color="transparent")
             bloco.grid(row=0, column=col, sticky="nw", padx=(0 if col == 0 else self._px(14), 0))
-            ctk.CTkLabel(bloco, text=ico, font=icons.fonte(self._px(20)),
-                         text_color=VERDE_GLOW).pack(anchor="w", pady=(0, self._px(8)))
+            icone = self._carregar_icone_recurso(arquivo_icone, self._px(32))
+            if icone:
+                ctk.CTkLabel(bloco, image=icone, text="").pack(anchor="w", pady=(0, self._px(8)))
             ctk.CTkLabel(bloco, text=titulo, font=self._fnt(11, True),
                          text_color=BRANCO, anchor="w", justify="left",
                          wraplength=self._px(150)).pack(anchor="w")
             ctk.CTkLabel(bloco, text=desc, font=self._fnt(9),
                          text_color=SIDEBAR_TEXTO, anchor="w", justify="left").pack(anchor="w", pady=(self._px(2), 0))
+
+    def _carregar_icone_recurso(self, nome_arquivo: str, tam: int):
+        try:
+            from infrastructure.filesystem import assets_dir
+            from PIL import Image
+            caminho = assets_dir() / nome_arquivo
+            if not caminho.exists():
+                return None
+            img = Image.open(caminho)
+            return ctk.CTkImage(light_image=img, dark_image=img, size=(tam, tam))
+        except Exception:
+            return None
 
     def _montar_ilustracao(self, raiz):
         direita = ctk.CTkFrame(raiz, fg_color="transparent")
@@ -369,8 +386,16 @@ class LoginDialog(ctk.CTkToplevel):
             caminho = assets_dir() / "login_ilustracao.png"
             if caminho.exists():
                 img = Image.open(caminho)
+                # Contain-fit (preserva proporção) dentro de uma caixa de
+                # tam×tam -- forçar um CTkImage quadrado direto distorcia
+                # qualquer imagem que não fosse exatamente 1:1 (só não dava
+                # pra notar antes porque o asset antigo era 738×738).
                 tam = self._px(440)
-                self._img_ilustracao = ctk.CTkImage(light_image=img, dark_image=img, size=(tam, tam))
+                escala = min(tam / img.width, tam / img.height)
+                largura = round(img.width * escala)
+                altura = round(img.height * escala)
+                self._img_ilustracao = ctk.CTkImage(light_image=img, dark_image=img,
+                                                    size=(largura, altura))
                 ctk.CTkLabel(direita, image=self._img_ilustracao, text="").place(
                     relx=0.5, rely=0.5, anchor="center")
         except Exception:
